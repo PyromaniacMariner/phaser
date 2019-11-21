@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 /**
@@ -12,6 +12,7 @@
  * the top-left.
  *
  * @function Phaser.Tilemaps.Components.FindByIndex
+ * @private
  * @since 3.0.0
  *
  * @param {integer} index - The tile index value to search for.
@@ -19,8 +20,8 @@
  * @param {boolean} [reverse=false] - If true it will scan the layer in reverse, starting at the
  * bottom-right. Otherwise it scans from the top-left.
  * @param {Phaser.Tilemaps.LayerData} layer - The Tilemap Layer to act upon.
- * 
- * @return {Phaser.Tilemaps.Tile|null} The first (or n skipped) tile with the matching index.
+ *
+ * @return {?Phaser.Tilemaps.Tile} The first (or n skipped) tile with the matching index.
  */
 var FindByIndex = function (findIndex, skip, reverse, layer)
 {

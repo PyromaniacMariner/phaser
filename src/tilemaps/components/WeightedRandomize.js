@@ -1,14 +1,14 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var GetTilesWithin = require('./GetTilesWithin');
 
 /**
  * Randomizes the indexes of a rectangular region of tiles (in tile coordinates) within the
- * specified layer. Each tile will recieve a new index. New indexes are drawn from the given
+ * specified layer. Each tile will receive a new index. New indexes are drawn from the given
  * weightedIndexes array. An example weighted array:
  *
  * [
@@ -22,12 +22,13 @@ var GetTilesWithin = require('./GetTilesWithin');
  * method only modifies tile indexes and does not change collision information.
  *
  * @function Phaser.Tilemaps.Components.WeightedRandomize
+ * @private
  * @since 3.0.0
  *
- * @param {integer} [tileX=0] - [description]
- * @param {integer} [tileY=0] - [description]
- * @param {integer} [width=max width based on tileX] - [description]
- * @param {integer} [height=max height based on tileY] - [description]
+ * @param {integer} [tileX=0] - The left most tile index (in tile coordinates) to use as the origin of the area.
+ * @param {integer} [tileY=0] - The top most tile index (in tile coordinates) to use as the origin of the area.
+ * @param {integer} [width=max width based on tileX] - How many tiles wide from the `tileX` index the area will be.
+ * @param {integer} [height=max height based on tileY] - How many tiles tall from the `tileY` index the area will be.
  * @param {object[]} [weightedIndexes] - An array of objects to randomly draw from during
  * randomization. They should be in the form: { index: 0, weight: 4 } or
  * { index: [0, 1], weight: 4 } if you wish to draw from multiple tile indexes.

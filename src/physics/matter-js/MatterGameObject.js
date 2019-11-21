@@ -1,44 +1,57 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
-var Bodies = require('./lib/factory/Bodies');
-var Class = require('../../utils/Class');
 var Components = require('./components');
 var GetFastValue = require('../../utils/object/GetFastValue');
 var Vector2 = require('../../math/Vector2');
 
 /**
- * @classdesc
- * A Matter Physics Body applied to a Game Object.
+ * Internal function to check if the object has a getter or setter.
  *
- * @class MatterGameObject
- * @memberOf Phaser.Physics.Matter
- * @constructor
+ * @function hasGetterOrSetter
+ * @private
+ *
+ * @param {object} def - The object to check.
+ *
+ * @return {boolean} True if it has a getter or setter, otherwise false.
+ */
+function hasGetterOrSetter (def)
+{
+    return (!!def.get && typeof def.get === 'function') || (!!def.set && typeof def.set === 'function');
+}
+
+/**
+ * [description]
+ *
+ * @function Phaser.Physics.Matter.MatterGameObject
  * @since 3.3.0
  *
- * @extends Phaser.Physics.Matter.Components.Bounce
- * @extends Phaser.Physics.Matter.Components.Collision
- * @extends Phaser.Physics.Matter.Components.Force
- * @extends Phaser.Physics.Matter.Components.Friction
- * @extends Phaser.Physics.Matter.Components.Gravity
- * @extends Phaser.Physics.Matter.Components.Mass
- * @extends Phaser.Physics.Matter.Components.Sensor
- * @extends Phaser.Physics.Matter.Components.SetBody
- * @extends Phaser.Physics.Matter.Components.Sleep
- * @extends Phaser.Physics.Matter.Components.Static
- * @extends Phaser.Physics.Matter.Components.Transform
- * @extends Phaser.Physics.Matter.Components.Velocity
+ * @param {Phaser.Physics.Matter.World} world - The Matter world to add the body to.
+ * @param {Phaser.GameObjects.GameObject} gameObject - The Game Object that will have the Matter body applied to it.
+ * @param {(object|MatterJS.Body)} options - A Matter Body configuration object, or an instance of a Matter Body.
  *
- * @param {Phaser.Physics.Matter.World} world - [description]
- * @param {Phaser.GameObjects.GameObject} gameObject - [description]
- * @param {object} options - [description]
+ * @return {Phaser.GameObjects.GameObject} The Game Object that was created with the Matter body.
  */
-var MatterGameObject = new Class({
+var MatterGameObject = function (world, gameObject, options)
+{
+    if (options === undefined) { options = {}; }
 
-    Mixins: [
+    var x = gameObject.x;
+    var y = gameObject.y;
+
+    //  Temp body pos to avoid body null checks
+    gameObject.body = {
+        temp: true,
+        position: {
+            x: x,
+            y: y
+        }
+    };
+
+    var mixins = [
         Components.Bounce,
         Components.Collision,
         Components.Force,
@@ -51,37 +64,49 @@ var MatterGameObject = new Class({
         Components.Static,
         Components.Transform,
         Components.Velocity
-    ],
+    ];
 
-    initialize:
-
-    function MatterGameObject (world, gameObject, options)
+    //  First let's inject all of the components into the Game Object
+    mixins.forEach(function (mixin)
     {
-        this.gameObject = gameObject;
+        for (var key in mixin)
+        {
+            if (hasGetterOrSetter(mixin[key]))
+            {
+                Object.defineProperty(gameObject, key, {
+                    get: mixin[key].get,
+                    set: mixin[key].set
+                });
+            }
+            else
+            {
+                Object.defineProperty(gameObject, key, {value: mixin[key]});
+            }
+        }
 
-        this.world = world;
+    });
 
-        this._tempVec2 = new Vector2(gameObject.x, gameObject.y);
+    gameObject.world = world;
 
+    gameObject._tempVec2 = new Vector2(x, y);
+
+    if (options.hasOwnProperty('type') && options.type === 'body')
+    {
+        gameObject.setExistingBody(options, true);
+    }
+    else
+    {
         var shape = GetFastValue(options, 'shape', null);
 
         if (!shape)
         {
-            this.body = Bodies.rectangle(gameObject.x, gameObject.y, gameObject.width, gameObject.height, options);
-
-            this.body.gameObject = this.gameObject;
-
-            if (GetFastValue(options, 'addToWorld', true))
-            {
-                world.add(this.body);
-            }
+            shape = 'rectangle';
         }
-        else
-        {
-            this.setBody(shape, options);
-        }
+    
+        gameObject.setBody(shape, options);
     }
 
-});
+    return gameObject;
+};
 
 module.exports = MatterGameObject;

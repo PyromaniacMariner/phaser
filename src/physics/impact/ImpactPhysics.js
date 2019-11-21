@@ -1,14 +1,15 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../../utils/Class');
 var Factory = require('./Factory');
 var GetFastValue = require('../../utils/object/GetFastValue');
 var Merge = require('../../utils/object/Merge');
-var PluginManager = require('../../boot/PluginManager');
+var PluginCache = require('../../plugins/PluginCache');
+var SceneEvents = require('../../scene/events');
 var World = require('./World');
 
 /**
@@ -16,7 +17,7 @@ var World = require('./World');
  * [description]
  *
  * @class ImpactPhysics
- * @memberOf Phaser.Physics.Impact
+ * @memberof Phaser.Physics.Impact
  * @constructor
  * @since 3.0.0
  *
@@ -46,11 +47,6 @@ var ImpactPhysics = new Class({
          */
         this.systems = scene.sys;
 
-        if (!scene.sys.settings.isBooted)
-        {
-            scene.sys.events.once('boot', this.boot, this);
-        }
-
         /**
          * [description]
          *
@@ -77,6 +73,48 @@ var ImpactPhysics = new Class({
          * @since 3.0.0
          */
         this.add;
+
+        scene.sys.events.once(SceneEvents.BOOT, this.boot, this);
+        scene.sys.events.on(SceneEvents.START, this.start, this);
+    },
+
+    /**
+     * This method is called automatically, only once, when the Scene is first created.
+     * Do not invoke it directly.
+     *
+     * @method Phaser.Physics.Impact.ImpactPhysics#boot
+     * @private
+     * @since 3.5.1
+     */
+    boot: function ()
+    {
+        this.world = new World(this.scene, this.config);
+        this.add = new Factory(this.world);
+
+        this.systems.events.once(SceneEvents.DESTROY, this.destroy, this);
+    },
+
+    /**
+     * This method is called automatically by the Scene when it is starting up.
+     * It is responsible for creating local systems, properties and listening for Scene events.
+     * Do not invoke it directly.
+     *
+     * @method Phaser.Physics.Impact.ImpactPhysics#start
+     * @private
+     * @since 3.5.0
+     */
+    start: function ()
+    {
+        if (!this.world)
+        {
+            this.world = new World(this.scene, this.config);
+            this.add = new Factory(this.world);
+        }
+
+        var eventEmitter = this.systems.events;
+
+        eventEmitter.on(SceneEvents.UPDATE, this.world.update, this.world);
+        eventEmitter.once(SceneEvents.SHUTDOWN, this.shutdown, this);
     },
 
     /**
@@ -98,24 +136,6 @@ var ImpactPhysics = new Class({
         );
 
         return config;
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Physics.Impact.ImpactPhysics#boot
-     * @since 3.0.0
-     */
-    boot: function ()
-    {
-        this.world = new World(this.scene, this.config);
-        this.add = new Factory(this.world);
-
-        var eventEmitter = this.systems.events;
-
-        eventEmitter.on('update', this.world.update, this.world);
-        eventEmitter.on('shutdown', this.shutdown, this);
-        eventEmitter.on('destroy', this.destroy, this);
     },
 
     /**
@@ -145,29 +165,47 @@ var ImpactPhysics = new Class({
     },
 
     /**
-     * [description]
+     * The Scene that owns this plugin is shutting down.
+     * We need to kill and reset all internal properties as well as stop listening to Scene events.
      *
      * @method Phaser.Physics.Impact.ImpactPhysics#shutdown
+     * @private
      * @since 3.0.0
      */
     shutdown: function ()
     {
-        this.world.shutdown();
+        var eventEmitter = this.systems.events;
+
+        eventEmitter.off(SceneEvents.UPDATE, this.world.update, this.world);
+        eventEmitter.off(SceneEvents.SHUTDOWN, this.shutdown, this);
+
+        this.add.destroy();
+        this.world.destroy();
+
+        this.add = null;
+        this.world = null;
     },
 
     /**
-     * [description]
+     * The Scene that owns this plugin is being destroyed.
+     * We need to shutdown and then kill off all external references.
      *
      * @method Phaser.Physics.Impact.ImpactPhysics#destroy
+     * @private
      * @since 3.0.0
      */
     destroy: function ()
     {
-        this.world.destroy();
+        this.shutdown();
+
+        this.scene.sys.events.off(SceneEvents.START, this.start, this);
+
+        this.scene = null;
+        this.systems = null;
     }
 
 });
 
-PluginManager.register('ImpactPhysics', ImpactPhysics, 'impactPhysics');
+PluginCache.register('ImpactPhysics', ImpactPhysics, 'impactPhysics');
 
 module.exports = ImpactPhysics;

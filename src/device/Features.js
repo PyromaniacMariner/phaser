@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var OS = require('./OS');
@@ -14,10 +14,9 @@ var CanvasPool = require('../display/canvas/CanvasPool');
  * They are then referenced by internal game systems and are available for you to access
  * via `this.sys.game.device.features` from within any Scene.
  * 
- * @name Phaser.Device.Features
+ * @typedef {object} Phaser.Device.Features
  * @since 3.0.0
  * 
- * @type {object}
  * @property {?boolean} canvasBitBltShift - True if canvas supports a 'copy' bitblt onto itself when the source and destination regions overlap.
  * @property {boolean} canvas - Is canvas available?
  * @property {boolean} file - Is file available?
@@ -79,7 +78,7 @@ function checkIsLittleEndian ()
 
 function init ()
 {
-    Features.canvas = !!window['CanvasRenderingContext2D'] || OS.cocoonJS;
+    Features.canvas = !!window['CanvasRenderingContext2D'];
 
     try
     {
@@ -102,11 +101,6 @@ function init ()
             try
             {
                 var canvas = CanvasPool.createWebGL(this);
-
-                if (OS.cocoonJS)
-                {
-                    canvas.screencanvas = false;
-                }
 
                 var ctx = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
 

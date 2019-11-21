@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../../utils/Class');
@@ -9,17 +9,21 @@ var GetFastValue = require('../../utils/object/GetFastValue');
 
 /**
  * @classdesc
- * [description]
+ * The GravityWell action applies a force on the particle to draw it towards, or repel it from, a single point.
+ * 
+ * The force applied is inversely proportional to the square of the distance from the particle to the point, in accordance with Newton's law of gravity.
+ * 
+ * This simulates the effect of gravity over large distances (as between planets, for example).
  *
  * @class GravityWell
- * @memberOf Phaser.GameObjects.Particles
+ * @memberof Phaser.GameObjects.Particles
  * @constructor
  * @since 3.0.0
  *
- * @param {number|object} [x=0] - The x coordinate of the Gravity Well, in world space.
+ * @param {(number|Phaser.Types.GameObjects.Particles.GravityWellConfig)} [x=0] - The x coordinate of the Gravity Well, in world space.
  * @param {number} [y=0] - The y coordinate of the Gravity Well, in world space.
- * @param {number} [power=0] - The power of the Gravity Well.
- * @param {number} [epsilon=100] - [description]
+ * @param {number} [power=0] - The strength of the gravity force - larger numbers produce a stronger force.
+ * @param {number} [epsilon=100] - The minimum distance for which the gravity force is calculated.
  * @param {number} [gravity=50] - The gravitational force of this Gravity Well.
  */
 var GravityWell = new Class({
@@ -108,7 +112,7 @@ var GravityWell = new Class({
         this._epsilon = 0;
 
         /**
-         * The power of the Gravity Well.
+         * The strength of the gravity force - larger numbers produce a stronger force.
          *
          * @name Phaser.GameObjects.Particles.GravityWell#power
          * @type {number}
@@ -117,7 +121,7 @@ var GravityWell = new Class({
         this.power = power;
 
         /**
-         * [description]
+         * The minimum distance for which the gravity force is calculated.
          *
          * @name Phaser.GameObjects.Particles.GravityWell#epsilon
          * @type {number}
@@ -134,7 +138,7 @@ var GravityWell = new Class({
      *
      * @param {Phaser.GameObjects.Particles.Particle} particle - The Particle to update.
      * @param {number} delta - The delta time in ms.
-     * @param {float} step - The delta value divided by 1000.
+     * @param {number} step - The delta value divided by 1000.
      */
     update: function (particle, delta)
     {

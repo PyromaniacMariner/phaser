@@ -1,14 +1,15 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 /**
  * Adds an Image Element to a Texture.
  *
  * @function Phaser.Textures.Parsers.Image
- * @memberOf Phaser.Textures.Parsers
+ * @memberof Phaser.Textures.Parsers
+ * @private
  * @since 3.0.0
  *
  * @param {Phaser.Textures.Texture} texture - The Texture to add the Frames to.

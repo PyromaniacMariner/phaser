@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var CanvasPool = require('../display/canvas/CanvasPool');
@@ -12,10 +12,9 @@ var CanvasPool = require('../display/canvas/CanvasPool');
  * They are then referenced by internal game systems and are available for you to access
  * via `this.sys.game.device.canvasFeatures` from within any Scene.
  * 
- * @name Phaser.Device.CanvasFeatures
+ * @typedef {object} Phaser.Device.CanvasFeatures
  * @since 3.0.0
- *
- * @type {object}
+ * 
  * @property {boolean} supportInverseAlpha - Set to true if the browser supports inversed alpha.
  * @property {boolean} supportNewBlendModes - Set to true if the browser supports new canvas blend modes.
  */

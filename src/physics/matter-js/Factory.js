@@ -1,10 +1,11 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Bodies = require('./lib/factory/Bodies');
+var Body = require('./lib/body/Body');
 var Class = require('../../utils/Class');
 var Composites = require('./lib/factory/Composites');
 var Constraint = require('./lib/constraint/Constraint');
@@ -13,17 +14,18 @@ var MatterImage = require('./MatterImage');
 var MatterSprite = require('./MatterSprite');
 var MatterTileBody = require('./MatterTileBody');
 var PointerConstraint = require('./PointerConstraint');
+var Vertices = require('./lib/geometry/Vertices');
 
 /**
  * @classdesc
- * [description]
+ * The Matter Factory can create different types of bodies and them to a physics world.
  *
  * @class Factory
- * @memberOf Phaser.Physics.Matter
+ * @memberof Phaser.Physics.Matter
  * @constructor
  * @since 3.0.0
  *
- * @param {Phaser.Physics.Matter.World} world - [description]
+ * @param {Phaser.Physics.Matter.World} world - The Matter World which this Factory adds to.
  */
 var Factory = new Class({
 
@@ -32,7 +34,7 @@ var Factory = new Class({
     function Factory (world)
     {
         /**
-         * [description]
+         * The Matter World which this Factory adds to.
          *
          * @name Phaser.Physics.Matter.Factory#world
          * @type {Phaser.Physics.Matter.World}
@@ -41,7 +43,7 @@ var Factory = new Class({
         this.world = world;
 
         /**
-         * [description]
+         * The Scene which this Factory's Matter World belongs to.
          *
          * @name Phaser.Physics.Matter.Factory#scene
          * @type {Phaser.Scene}
@@ -60,18 +62,18 @@ var Factory = new Class({
     },
 
     /**
-     * [description]
+     * Creates a new rigid rectangular Body and adds it to the World.
      *
      * @method Phaser.Physics.Matter.Factory#rectangle
      * @since 3.0.0
      *
-     * @param {number} x - [description]
-     * @param {number} y - [description]
-     * @param {number} width - [description]
-     * @param {number} height - [description]
-     * @param {object} options - [description]
+     * @param {number} x - The X coordinate of the center of the Body.
+     * @param {number} y - The Y coordinate of the center of the Body.
+     * @param {number} width - The width of the Body.
+     * @param {number} height - The height of the Body.
+     * @param {object} options - An object of properties to set on the Body. You can also specify a `chamfer` property to automatically adjust the body.
      *
-     * @return {Matter.Body} A Matter JS Body.
+     * @return {MatterJS.Body} A Matter JS Body.
      */
     rectangle: function (x, y, width, height, options)
     {
@@ -83,19 +85,19 @@ var Factory = new Class({
     },
 
     /**
-     * [description]
+     * Creates a new rigid trapezoidal Body and adds it to the World.
      *
      * @method Phaser.Physics.Matter.Factory#trapezoid
      * @since 3.0.0
      *
-     * @param {number} x - [description]
-     * @param {number} y - [description]
-     * @param {number} width - [description]
-     * @param {number} height - [description]
-     * @param {number} slope - [description]
-     * @param {object} options - [description]
+     * @param {number} x - The X coordinate of the center of the Body.
+     * @param {number} y - The Y coordinate of the center of the Body.
+     * @param {number} width - The width of the trapezoid of the Body.
+     * @param {number} height - The height of the trapezoid of the Body.
+     * @param {number} slope - The slope of the trapezoid. 0 creates a rectangle, while 1 creates a triangle. Positive values make the top side shorter, while negative values make the bottom side shorter.
+     * @param {object} options - An object of properties to set on the Body. You can also specify a `chamfer` property to automatically adjust the body.
      *
-     * @return {Matter.Body} A Matter JS Body.
+     * @return {MatterJS.Body} A Matter JS Body.
      */
     trapezoid: function (x, y, width, height, slope, options)
     {
@@ -107,18 +109,18 @@ var Factory = new Class({
     },
 
     /**
-     * [description]
+     * Creates a new rigid circular Body and adds it to the World.
      *
      * @method Phaser.Physics.Matter.Factory#circle
      * @since 3.0.0
      *
-     * @param {number} x - [description]
-     * @param {number} y - [description]
-     * @param {number} radius - [description]
-     * @param {object} options - [description]
-     * @param {number} maxSides - [description]
+     * @param {number} x - The X coordinate of the center of the Body.
+     * @param {number} y - The Y coordinate of the center of the Body.
+     * @param {number} radius - The radius of the circle.
+     * @param {object} [options] - An object of properties to set on the Body. You can also specify a `chamfer` property to automatically adjust the body.
+     * @param {number} [maxSides] - The maximum amount of sides to use for the polygon which will approximate this circle.
      *
-     * @return {Matter.Body} A Matter JS Body.
+     * @return {MatterJS.Body} A Matter JS Body.
      */
     circle: function (x, y, radius, options, maxSides)
     {
@@ -130,18 +132,18 @@ var Factory = new Class({
     },
 
     /**
-     * [description]
+     * Creates a new rigid polygonal Body and adds it to the World.
      *
      * @method Phaser.Physics.Matter.Factory#polygon
      * @since 3.0.0
      *
-     * @param {number} x - [description]
-     * @param {number} y - [description]
-     * @param {number} sides - [description]
-     * @param {number} radius - [description]
-     * @param {object} options - [description]
+     * @param {number} x - The X coordinate of the center of the Body.
+     * @param {number} y - The Y coordinate of the center of the Body.
+     * @param {number} sides - The number of sides the polygon will have.
+     * @param {number} radius - The "radius" of the polygon, i.e. the distance from its center to any vertex. This is also the radius of its circumcircle.
+     * @param {object} options - An object of properties to set on the Body. You can also specify a `chamfer` property to automatically adjust the body.
      *
-     * @return {Matter.Body} A Matter JS Body.
+     * @return {MatterJS.Body} A Matter JS Body.
      */
     polygon: function (x, y, sides, radius, options)
     {
@@ -153,23 +155,29 @@ var Factory = new Class({
     },
 
     /**
-     * [description]
+     * Creates a body using the supplied vertices (or an array containing multiple sets of vertices) and adds it to the World.
+     * If the vertices are convex, they will pass through as supplied. Otherwise, if the vertices are concave, they will be decomposed. Note that this process is not guaranteed to support complex sets of vertices, e.g. ones with holes.
      *
      * @method Phaser.Physics.Matter.Factory#fromVertices
      * @since 3.0.0
      *
-     * @param {number} x - [description]
-     * @param {number} y - [description]
-     * @param {array} vertexSets - [description]
-     * @param {object} options - [description]
-     * @param {boolean} flagInternal - [description]
-     * @param {boolean} removeCollinear - [description]
-     * @param {number} minimumArea - [description]
+     * @param {number} x - The X coordinate of the center of the Body.
+     * @param {number} y - The Y coordinate of the center of the Body.
+     * @param {(string|array)} vertexSets - [description]
+     * @param {object} [options] - [description]
+     * @param {boolean} [flagInternal=false] - Flag internal edges (coincident part edges)
+     * @param {number} [removeCollinear=0.01] - Whether Matter.js will discard collinear edges (to improve performance).
+     * @param {number} [minimumArea=10] - During decomposition discard parts that have an area less than this.
      *
-     * @return {Matter.Body} A Matter JS Body.
+     * @return {MatterJS.Body} A Matter JS Body.
      */
     fromVertices: function (x, y, vertexSets, options, flagInternal, removeCollinear, minimumArea)
     {
+        if (typeof vertexSets === 'string')
+        {
+            vertexSets = Vertices.fromPath(vertexSets);
+        }
+
         var body = Bodies.fromVertices(x, y, vertexSets, options, flagInternal, removeCollinear, minimumArea);
 
         this.world.add(body);
@@ -185,16 +193,16 @@ var Factory = new Class({
      * @since 3.0.0
      *
      * @param {string} key - The key of the Texture this Game Object will use to render with, as stored in the Texture Manager.
-     * @param {string|integer} [frame] - An optional frame from the Texture this Game Object is rendering with.
+     * @param {(string|integer)} frame - An optional frame from the Texture this Game Object is rendering with. Set to `null` to skip this value.
      * @param {number} x - The horizontal position of this composite in the world.
      * @param {number} y - The vertical position of this composite in the world.
      * @param {number} columns - The number of columns in the grid.
      * @param {number} rows - The number of rows in the grid.
-     * @param {number} columnGap - The distance between each column.
-     * @param {number} rowGap - The distance between each row.
-     * @param {object} options - [description]
+     * @param {number} [columnGap=0] - The distance between each column.
+     * @param {number} [rowGap=0] - The distance between each row.
+     * @param {object} [options] - [description]
      *
-     * @return {Matter.Composite} A Matter JS Composite Stack.
+     * @return {MatterJS.Composite} A Matter JS Composite Stack.
      */
     imageStack: function (key, frame, x, y, columns, rows, columnGap, rowGap, options)
     {
@@ -236,7 +244,7 @@ var Factory = new Class({
      * @param {number} rowGap - The distance between each row.
      * @param {function} callback - The callback that creates the stack.
      *
-     * @return {Matter.Composite} A new composite containing objects created in the callback.
+     * @return {MatterJS.Composite} A new composite containing objects created in the callback.
      */
     stack: function (x, y, columns, rows, columnGap, rowGap, callback)
     {
@@ -260,9 +268,9 @@ var Factory = new Class({
      * @param {number} rows - The number of rows in the pyramid.
      * @param {number} columnGap - The distance between each column.
      * @param {number} rowGap - The distance between each row.
-     * @param {function} callback - [description]
+     * @param {function} callback - The callback function to be invoked.
      *
-     * @return {Matter.Composite} A Matter JS Composite pyramid.
+     * @return {MatterJS.Composite} A Matter JS Composite pyramid.
      */
     pyramid: function (x, y, columns, rows, columnGap, rowGap, callback)
     {
@@ -279,14 +287,14 @@ var Factory = new Class({
      * @method Phaser.Physics.Matter.Factory#chain
      * @since 3.0.0
      *
-     * @param {Matter.Composite} composite - [description]
+     * @param {MatterJS.Composite} composite - [description]
      * @param {number} xOffsetA - [description]
      * @param {number} yOffsetA - [description]
      * @param {number} xOffsetB - [description]
      * @param {number} yOffsetB - [description]
      * @param {object} options - [description]
      *
-     * @return {Matter.Composite} A new composite containing objects chained together with constraints.
+     * @return {MatterJS.Composite} A new composite containing objects chained together with constraints.
      */
     chain: function (composite, xOffsetA, yOffsetA, xOffsetB, yOffsetB, options)
     {
@@ -299,13 +307,13 @@ var Factory = new Class({
      * @method Phaser.Physics.Matter.Factory#mesh
      * @since 3.0.0
      *
-     * @param {Matter.Composite} composite - [description]
+     * @param {MatterJS.Composite} composite - [description]
      * @param {number} columns - [description]
      * @param {number} rows - [description]
      * @param {boolean} crossBrace - [description]
      * @param {object} options - [description]
      *
-     * @return {Matter.Composite} The composite containing objects meshed together with constraints.
+     * @return {MatterJS.Composite} The composite containing objects meshed together with constraints.
      */
     mesh: function (composite, columns, rows, crossBrace, options)
     {
@@ -324,7 +332,7 @@ var Factory = new Class({
      * @param {number} size - [description]
      * @param {number} length - [description]
      *
-     * @return {Matter.Composite} A new composite newtonsCradle body.
+     * @return {MatterJS.Composite} A new composite newtonsCradle body.
      */
     newtonsCradle: function (x, y, number, size, length)
     {
@@ -347,7 +355,7 @@ var Factory = new Class({
      * @param {number} height - [description]
      * @param {number} wheelSize - [description]
      *
-     * @return {Matter.Composite} A new composite car body.
+     * @return {MatterJS.Composite} A new composite car body.
      */
     car: function (x, y, width, height, wheelSize)
     {
@@ -371,11 +379,11 @@ var Factory = new Class({
      * @param {number} columnGap - The distance between each column.
      * @param {number} rowGap - The distance between each row.
      * @param {boolean} crossBrace - [description]
-     * @param {number} particleRadius - [description]
+     * @param {number} particleRadius - The radius of this circlular composite.
      * @param {object} particleOptions - [description]
      * @param {object} constraintOptions - [description]
      *
-     * @return {Matter.Composite} A new composite simple soft body.
+     * @return {MatterJS.Composite} A new composite simple soft body.
      */
     softBody: function (x, y, columns, rows, columnGap, rowGap, crossBrace, particleRadius, particleOptions, constraintOptions)
     {
@@ -392,13 +400,13 @@ var Factory = new Class({
      * @method Phaser.Physics.Matter.Factory#joint
      * @since 3.0.0
      *
-     * @param {Matter.Body} bodyA - [description]
-     * @param {Matter.Body} bodyB - [description]
-     * @param {number} length - [description]
-     * @param {number} [stiffness=1] - [description]
+     * @param {MatterJS.Body} bodyA - The first possible `Body` that this constraint is attached to.
+     * @param {MatterJS.Body} bodyB - The second possible `Body` that this constraint is attached to.
+     * @param {number} [length] - A Number that specifies the target resting length of the constraint. If not given it is calculated automatically in `Constraint.create` from initial positions of the `constraint.bodyA` and `constraint.bodyB`.
+     * @param {number} [stiffness=1] - A Number that specifies the stiffness of the constraint, i.e. the rate at which it returns to its resting `constraint.length`. A value of `1` means the constraint should be very stiff. A value of `0.2` means the constraint acts as a soft spring.
      * @param {object} [options={}] - [description]
      *
-     * @return {Matter.Constraint} A Matter JS Constraint.
+     * @return {MatterJS.Constraint} A Matter JS Constraint.
      */
     joint: function (bodyA, bodyB, length, stiffness, options)
     {
@@ -411,13 +419,13 @@ var Factory = new Class({
      * @method Phaser.Physics.Matter.Factory#spring
      * @since 3.0.0
      *
-     * @param {Matter.Body} bodyA - [description]
-     * @param {Matter.Body} bodyB - [description]
-     * @param {number} length - [description]
-     * @param {number} [stiffness=1] - [description]
+     * @param {MatterJS.Body} bodyA - The first possible `Body` that this constraint is attached to.
+     * @param {MatterJS.Body} bodyB - The second possible `Body` that this constraint is attached to.
+     * @param {number} [length] - A Number that specifies the target resting length of the constraint. If not given it is calculated automatically in `Constraint.create` from initial positions of the `constraint.bodyA` and `constraint.bodyB`.
+     * @param {number} [stiffness=1] - A Number that specifies the stiffness of the constraint, i.e. the rate at which it returns to its resting `constraint.length`. A value of `1` means the constraint should be very stiff. A value of `0.2` means the constraint acts as a soft spring.
      * @param {object} [options={}] - [description]
      *
-     * @return {Matter.Constraint} A Matter JS Constraint.
+     * @return {MatterJS.Constraint} A Matter JS Constraint.
      */
     spring: function (bodyA, bodyB, length, stiffness, options)
     {
@@ -430,13 +438,13 @@ var Factory = new Class({
      * @method Phaser.Physics.Matter.Factory#constraint
      * @since 3.0.0
      *
-     * @param {Matter.Body} bodyA - [description]
-     * @param {Matter.Body} bodyB - [description]
-     * @param {number} length - [description]
-     * @param {number} [stiffness=1] - [description]
+     * @param {MatterJS.Body} bodyA - The first possible `Body` that this constraint is attached to.
+     * @param {MatterJS.Body} bodyB - The second possible `Body` that this constraint is attached to.
+     * @param {number} [length] - A Number that specifies the target resting length of the constraint. If not given it is calculated automatically in `Constraint.create` from initial positions of the `constraint.bodyA` and `constraint.bodyB`.
+     * @param {number} [stiffness=1] - A Number that specifies the stiffness of the constraint, i.e. the rate at which it returns to its resting `constraint.length`. A value of `1` means the constraint should be very stiff. A value of `0.2` means the constraint acts as a soft spring.
      * @param {object} [options={}] - [description]
      *
-     * @return {Matter.Constraint} A Matter JS Constraint.
+     * @return {MatterJS.Constraint} A Matter JS Constraint.
      */
     constraint: function (bodyA, bodyB, length, stiffness, options)
     {
@@ -445,7 +453,12 @@ var Factory = new Class({
 
         options.bodyA = (bodyA.type === 'body') ? bodyA : bodyA.body;
         options.bodyB = (bodyB.type === 'body') ? bodyB : bodyB.body;
-        options.length = length;
+
+        if (!isNaN(length))
+        {
+            options.length = length;
+        }
+
         options.stiffness = stiffness;
 
         var constraint = Constraint.create(options);
@@ -461,12 +474,12 @@ var Factory = new Class({
      * @method Phaser.Physics.Matter.Factory#worldConstraint
      * @since 3.0.0
      *
-     * @param {Matter.Body} bodyB - [description]
-     * @param {number} length - [description]
-     * @param {number} [stiffness=1] - [description]
+     * @param {MatterJS.Body} bodyB - The second possible `Body` that this constraint is attached to.
+     * @param {number} [length] - A Number that specifies the target resting length of the constraint. If not given it is calculated automatically in `Constraint.create` from initial positions of the `constraint.bodyA` and `constraint.bodyB`.
+     * @param {number} [stiffness=1] - A Number that specifies the stiffness of the constraint, i.e. the rate at which it returns to its resting `constraint.length`. A value of `1` means the constraint should be very stiff. A value of `0.2` means the constraint acts as a soft spring.
      * @param {object} [options={}] - [description]
      *
-     * @return {Matter.Constraint} A Matter JS Constraint.
+     * @return {MatterJS.Constraint} A Matter JS Constraint.
      */
     worldConstraint: function (bodyB, length, stiffness, options)
     {
@@ -474,7 +487,12 @@ var Factory = new Class({
         if (options === undefined) { options = {}; }
 
         options.bodyB = (bodyB.type === 'body') ? bodyB : bodyB.body;
-        options.length = length;
+
+        if (!isNaN(length))
+        {
+            options.length = length;
+        }
+
         options.stiffness = stiffness;
 
         var constraint = Constraint.create(options);
@@ -492,7 +510,7 @@ var Factory = new Class({
      *
      * @param {object} options - [description]
      *
-     * @return {Matter.Constraint} A Matter JS Constraint.
+     * @return {MatterJS.Constraint} A Matter JS Constraint.
      */
     mouseSpring: function (options)
     {
@@ -507,10 +525,17 @@ var Factory = new Class({
      *
      * @param {object} options - [description]
      *
-     * @return {Matter.Constraint} A Matter JS Constraint.
+     * @return {MatterJS.Constraint} A Matter JS Constraint.
      */
     pointerConstraint: function (options)
     {
+        if (options === undefined) { options = {}; }
+
+        if (!options.hasOwnProperty('render'))
+        {
+            options.render = { visible: false };
+        }
+
         var pointerConstraint = new PointerConstraint(this.scene, this.world, options);
 
         this.world.add(pointerConstraint.constraint);
@@ -527,10 +552,10 @@ var Factory = new Class({
      * @param {number} x - The horizontal position of this Game Object in the world.
      * @param {number} y - The vertical position of this Game Object in the world.
      * @param {string} key - The key of the Texture this Game Object will use to render with, as stored in the Texture Manager.
-     * @param {string|integer} [frame] - An optional frame from the Texture this Game Object is rendering with.
-     * @param {object} options - [description]
+     * @param {(string|integer)} [frame] - An optional frame from the Texture this Game Object is rendering with. Set to `null` to skip this value.
+     * @param {object} [options={}] - [description]
      *
-     * @return {Phaser.Physics.Matter.MatterImage} [description]
+     * @return {Phaser.Physics.Matter.Image} [description]
      */
     image: function (x, y, key, frame, options)
     {
@@ -547,10 +572,10 @@ var Factory = new Class({
      * @method Phaser.Physics.Matter.Factory#tileBody
      * @since 3.0.0
      *
-     * @param {Phaser.GameObjects.Tile} tile - [description]
+     * @param {Phaser.Tilemaps.Tile} tile - [description]
      * @param {object} options - [description]
      *
-     * @return {Phaser.Physics.Matter.MatterTileBody} [description]
+     * @return {Phaser.Physics.Matter.TileBody} [description]
      */
     tileBody: function (tile, options)
     {
@@ -568,10 +593,10 @@ var Factory = new Class({
      * @param {number} x - The horizontal position of this Game Object in the world.
      * @param {number} y - The vertical position of this Game Object in the world.
      * @param {string} key - The key of the Texture this Game Object will use to render with, as stored in the Texture Manager.
-     * @param {string|integer} [frame] - An optional frame from the Texture this Game Object is rendering with.
-     * @param {object} options - [description]
+     * @param {(string|integer)} [frame] - An optional frame from the Texture this Game Object is rendering with. Set to `null` to skip this value.
+     * @param {object} [options={}] - [description]
      *
-     * @return {Phaser.Physics.Matter.MatterSprite} [description]
+     * @return {Phaser.Physics.Matter.Sprite} [description]
      */
     sprite: function (x, y, key, frame, options)
     {
@@ -583,9 +608,92 @@ var Factory = new Class({
         return sprite;
     },
 
+    /**
+     * [description]
+     *
+     * @method Phaser.Physics.Matter.Factory#gameObject
+     * @since 3.3.0
+     *
+     * @param {Phaser.GameObjects.GameObject} gameObject - The Game Object to inject the Matter Body in to.
+     * @param {(object|MatterJS.Body)} options - A Matter Body configuration object, or an instance of a Matter Body.
+     *
+     * @return {Phaser.GameObjects.GameObject} The Game Object that had the Matter Body injected into it.
+     */
     gameObject: function (gameObject, options)
     {
-        return new MatterGameObject(this.world, gameObject, options);
+        return MatterGameObject(this.world, gameObject, options);
+    },
+
+    /**
+     * Instantly sets the linear velocity of the given body. Position, angle, force etc. are unchanged.
+     * 
+     * See also `force`.
+     *
+     * @method Phaser.Physics.Matter.Factory#velocity
+     * @since 3.18.0
+     *
+     * @param {MatterJS.Body} body - The Matter Body to set the velocity on.
+     * @param {Phaser.Types.Math.Vector2Like} velocity - The velocity to set. An object with public `x` and `y` components.
+     *
+     * @return {MatterJS.Body} The Matter body.
+     */
+    velocity: function (body, velocity)
+    {
+        Body.setVelocity(body, velocity);
+
+        return body;
+    },
+
+    /**
+     * Instantly sets the angular velocity of the given body. Position, angle, force etc. are unchanged.
+     * 
+     * See also `force`.
+     *
+     * @method Phaser.Physics.Matter.Factory#angularVelocity
+     * @since 3.18.0
+     *
+     * @param {MatterJS.Body} body - The Matter Body to set the velocity on.
+     * @param {number} velocity - The angular velocity to set.
+     *
+     * @return {MatterJS.Body} The Matter body.
+     */
+    angularVelocity: function (body, velocity)
+    {
+        Body.setAngularVelocity(body, velocity);
+
+        return body;
+    },
+
+    /**
+     * Applies a force to a body from a given world-space position, including resulting torque.
+     *
+     * @method Phaser.Physics.Matter.Factory#force
+     * @since 3.18.0
+     *
+     * @param {MatterJS.Body} body - The Matter Body to set the force on.
+     * @param {Phaser.Types.Math.Vector2Like} position - The world position to apply the force from. An object with public `x` and `y` components.
+     * @param {Phaser.Types.Math.Vector2Like} force - The force to set. An object with public `x` and `y` components.
+     *
+     * @return {MatterJS.Body} The Matter body.
+     */
+    force: function (body, position, force)
+    {
+        Body.applyForce(body, position, force);
+
+        return body;
+    },
+
+    /**
+     * Destroys this Factory.
+     *
+     * @method Phaser.Physics.Matter.Factory#destroy
+     * @since 3.5.0
+     */
+    destroy: function ()
+    {
+        this.world = null;
+        this.scene = null;
+        this.sys = null;
     }
 
 });

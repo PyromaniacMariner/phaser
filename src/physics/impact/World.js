@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Body = require('./Body');
@@ -9,6 +9,7 @@ var Class = require('../../utils/Class');
 var COLLIDES = require('./COLLIDES');
 var CollisionMap = require('./CollisionMap');
 var EventEmitter = require('eventemitter3');
+var Events = require('./events');
 var GetFastValue = require('../../utils/object/GetFastValue');
 var HasValue = require('../../utils/object/HasValue');
 var Set = require('../../structs/Set');
@@ -21,13 +22,13 @@ var TYPE = require('./TYPE');
  * [description]
  *
  * @class World
- * @extends EventEmitter
- * @memberOf Phaser.Physics.Impact
+ * @extends Phaser.Events.EventEmitter
+ * @memberof Phaser.Physics.Impact
  * @constructor
  * @since 3.0.0
  *
- * @param {Phaser.Scene} scene - [description]
- * @param {object} config - [description]
+ * @param {Phaser.Scene} scene - The Scene to which this Impact World instance belongs.
+ * @param {Phaser.Types.Physics.Impact.WorldConfig} config - [description]
  */
 var World = new Class({
 
@@ -52,7 +53,7 @@ var World = new Class({
          * [description]
          *
          * @name Phaser.Physics.Impact.World#bodies
-         * @type {Phaser.Structs.Set}
+         * @type {Phaser.Structs.Set.<Phaser.Physics.Impact.Body>}
          * @since 3.0.0
          */
         this.bodies = new Set();
@@ -90,7 +91,7 @@ var World = new Class({
          * [description]
          *
          * @name Phaser.Physics.Impact.World#timeScale
-         * @type {float}
+         * @type {number}
          * @default 1
          * @since 3.0.0
          */
@@ -140,7 +141,7 @@ var World = new Class({
          * [description]
          *
          * @name Phaser.Physics.Impact.World#defaults
-         * @type {object}
+         * @type {Phaser.Types.Physics.Impact.WorldDefaults}
          * @since 3.0.0
          */
         this.defaults = {
@@ -159,7 +160,7 @@ var World = new Class({
          * An object containing the 4 wall bodies that bound the physics world.
          *
          * @name Phaser.Physics.Impact.World#walls
-         * @type {object}
+         * @type {Phaser.Types.Physics.Impact.WorldWalls}
          * @since 3.0.0
          */
         this.walls = { left: null, right: null, top: null, bottom: null };
@@ -197,8 +198,8 @@ var World = new Class({
             {
                 var x = GetFastValue(boundsConfig, 'x', 0);
                 var y = GetFastValue(boundsConfig, 'y', 0);
-                var width = GetFastValue(boundsConfig, 'width', scene.sys.game.config.width);
-                var height = GetFastValue(boundsConfig, 'height', scene.sys.game.config.height);
+                var width = GetFastValue(boundsConfig, 'width', scene.sys.scale.width);
+                var height = GetFastValue(boundsConfig, 'height', scene.sys.scale.height);
                 var thickness = GetFastValue(boundsConfig, 'thickness', 64);
                 var left = GetFastValue(boundsConfig, 'left', true);
                 var right = GetFastValue(boundsConfig, 'right', true);
@@ -222,12 +223,12 @@ var World = new Class({
      * @method Phaser.Physics.Impact.World#setCollisionMap
      * @since 3.0.0
      *
-     * @param {string|integer[][]} key - Either a string key that corresponds to a Weltmeister level
+     * @param {(string|integer[][])} key - Either a string key that corresponds to a Weltmeister level
      * in the cache, or a 2D array of collision IDs.
      * @param {integer} tileSize - The size of a tile. This is optional if loading from a Weltmeister
      * level in the cache.
      *
-     * @return {CollisionMap|null} The newly created CollisionMap, or null if the method failed to
+     * @return {?Phaser.Physics.Impact.CollisionMap} The newly created CollisionMap, or null if the method failed to
      * create the CollisionMap.
      */
     setCollisionMap: function (key, tileSize)
@@ -278,17 +279,8 @@ var World = new Class({
      * @method Phaser.Physics.Impact.World#setCollisionMapFromTilemapLayer
      * @since 3.0.0
      *
-     * @param {StaticTilemapLayer|DynamicTilemapLayer} tilemapLayer - The tilemap layer to use.
-     * @param {object} [options] - Options for controlling the mapping from tiles to slope IDs.
-     * @param {string} [options.slopeTileProperty=null] - Slope IDs can be stored on tiles directly
-     * using Tiled's tileset editor. If a tile has a property with the given slopeTileProperty string
-     * name, the value of that property for the tile will be used for its slope mapping. E.g. a 45
-     * degree slope upward could be given a "slope" property with a value of 2.
-     * @param {object} [options.slopeMap=null] - A tile index to slope definition map.
-     * @param {integer} [options.defaultCollidingSlope=null] - If specified, the default slope ID to
-     * assign to a colliding tile. If not specified, the tile's index is used.
-     * @param {integer} [options.defaultNonCollidingSlope=0] - The default slope ID to assign to a
-     * non-colliding tile.
+     * @param {(Phaser.Tilemaps.DynamicTilemapLayer|Phaser.Tilemaps.StaticTilemapLayer)} tilemapLayer - The tilemap layer to use.
+     * @param {Phaser.Types.Physics.Impact.CollisionOptions} [options] - Options for controlling the mapping from tiles to slope IDs.
      *
      * @return {Phaser.Physics.Impact.CollisionMap} The newly created CollisionMap.
      */
@@ -370,8 +362,8 @@ var World = new Class({
     {
         if (x === undefined) { x = 0; }
         if (y === undefined) { y = 0; }
-        if (width === undefined) { width = this.scene.sys.game.config.width; }
-        if (height === undefined) { height = this.scene.sys.game.config.height; }
+        if (width === undefined) { width = this.scene.sys.scale.width; }
+        if (height === undefined) { height = this.scene.sys.scale.height; }
         if (thickness === undefined) { thickness = 64; }
         if (left === undefined) { left = true; }
         if (right === undefined) { right = true; }
@@ -429,12 +421,12 @@ var World = new Class({
     },
 
     /**
-     * [description]
+     * Creates a Graphics Game Object used for debug display and enables the world for debug drawing.
      *
      * @method Phaser.Physics.Impact.World#createDebugGraphic
      * @since 3.0.0
      *
-     * @return {Phaser.GameObjects.Graphics} [description]
+     * @return {Phaser.GameObjects.Graphics} The Graphics object created that will have the debug visuals drawn to it.
      */
     createDebugGraphic: function ()
     {
@@ -501,6 +493,7 @@ var World = new Class({
      * [description]
      *
      * @method Phaser.Physics.Impact.World#pause
+     * @fires Phaser.Physics.Impact.Events#PAUSE
      * @since 3.0.0
      *
      * @return {Phaser.Physics.Impact.World} This World object.
@@ -509,7 +502,7 @@ var World = new Class({
     {
         this.enabled = false;
 
-        this.emit('pause');
+        this.emit(Events.PAUSE);
 
         return this;
     },
@@ -518,6 +511,7 @@ var World = new Class({
      * [description]
      *
      * @method Phaser.Physics.Impact.World#resume
+     * @fires Phaser.Physics.Impact.Events#RESUME
      * @since 3.0.0
      *
      * @return {Phaser.Physics.Impact.World} This World object.
@@ -526,7 +520,7 @@ var World = new Class({
     {
         this.enabled = true;
 
-        this.emit('resume');
+        this.emit(Events.RESUME);
 
         return this;
     },
@@ -537,8 +531,8 @@ var World = new Class({
      * @method Phaser.Physics.Impact.World#update
      * @since 3.0.0
      *
-     * @param {number} time - [description]
-     * @param {number} delta - [description]
+     * @param {number} time - The current time. Either a High Resolution Timer value if it comes from Request Animation Frame, or Date.now if using SetTimeout.
+     * @param {number} delta - The delta time in ms since the last frame. This is a smoothed and capped value based on the FPS rate.
      */
     update: function (time, delta)
     {
@@ -578,7 +572,7 @@ var World = new Class({
         {
             body = bodies[i];
 
-            if (!body.skipHash())
+            if (body && !body.skipHash())
             {
                 this.checkHash(body, hash, size);
             }
@@ -594,7 +588,7 @@ var World = new Class({
             {
                 body = bodies[i];
 
-                if (body.willDrawDebug())
+                if (body && body.willDrawDebug())
                 {
                     body.drawDebug(graphics);
                 }

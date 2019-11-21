@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var MergeXHRSettings = require('./MergeXHRSettings');
@@ -15,7 +15,7 @@ var MergeXHRSettings = require('./MergeXHRSettings');
  * @since 3.0.0
  *
  * @param {Phaser.Loader.File} file - The File to download.
- * @param {Phaser.Loader.XHRSettings} globalXHRSettings - The global XHRSettings object.
+ * @param {Phaser.Types.Loader.XHRSettingsObject} globalXHRSettings - The global XHRSettings object.
  *
  * @return {XMLHttpRequest} The XHR object.
  */
@@ -35,6 +35,11 @@ var XHRLoader = function (file, globalXHRSettings)
         xhr.setRequestHeader(config.header, config.headerValue);
     }
 
+    if (config.requestedWith)
+    {
+        xhr.setRequestHeader('X-Requested-With', config.requestedWith);
+    }
+
     if (config.overrideMimeType)
     {
         xhr.overrideMimeType(config.overrideMimeType);
@@ -42,8 +47,8 @@ var XHRLoader = function (file, globalXHRSettings)
 
     // After a successful request, the xhr.response property will contain the requested data as a DOMString, ArrayBuffer, Blob, or Document (depending on what was set for responseType.)
 
-    xhr.onload = file.onLoad.bind(file);
-    xhr.onerror = file.onError.bind(file);
+    xhr.onload = file.onLoad.bind(file, xhr);
+    xhr.onerror = file.onError.bind(file, xhr);
     xhr.onprogress = file.onProgress.bind(file);
 
     //  This is the only standard method, the ones above are browser additions (maybe not universal?)

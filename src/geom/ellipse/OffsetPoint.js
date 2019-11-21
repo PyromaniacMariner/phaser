@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 /**
@@ -10,8 +10,10 @@
  * @function Phaser.Geom.Ellipse.OffsetPoint
  * @since 3.0.0
  *
+ * @generic {Phaser.Geom.Ellipse} O - [ellipse,$return]
+ *
  * @param {Phaser.Geom.Ellipse} ellipse - The Ellipse to be offset (translated.)
- * @param {Phaser.Geom.Point|object} point - The Point object containing the values to offset the Ellipse by.
+ * @param {(Phaser.Geom.Point|object)} point - The Point object containing the values to offset the Ellipse by.
  *
  * @return {Phaser.Geom.Ellipse} The Ellipse that was offset.
  */

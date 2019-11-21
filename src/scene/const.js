@@ -1,16 +1,22 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
+/**
+ * Scene consts.
+ * 
+ * @ignore
+ */
 
-module.exports = {
+var CONST = {
 
     /**
      * Scene state.
      * 
      * @name Phaser.Scenes.PENDING
+     * @readonly
      * @type {integer}
      * @since 3.0.0
      */
@@ -20,6 +26,7 @@ module.exports = {
      * Scene state.
      * 
      * @name Phaser.Scenes.INIT
+     * @readonly
      * @type {integer}
      * @since 3.0.0
      */
@@ -29,6 +36,7 @@ module.exports = {
      * Scene state.
      * 
      * @name Phaser.Scenes.START
+     * @readonly
      * @type {integer}
      * @since 3.0.0
      */
@@ -38,6 +46,7 @@ module.exports = {
      * Scene state.
      * 
      * @name Phaser.Scenes.LOADING
+     * @readonly
      * @type {integer}
      * @since 3.0.0
      */
@@ -47,6 +56,7 @@ module.exports = {
      * Scene state.
      * 
      * @name Phaser.Scenes.CREATING
+     * @readonly
      * @type {integer}
      * @since 3.0.0
      */
@@ -56,6 +66,7 @@ module.exports = {
      * Scene state.
      * 
      * @name Phaser.Scenes.RUNNING
+     * @readonly
      * @type {integer}
      * @since 3.0.0
      */
@@ -65,6 +76,7 @@ module.exports = {
      * Scene state.
      * 
      * @name Phaser.Scenes.PAUSED
+     * @readonly
      * @type {integer}
      * @since 3.0.0
      */
@@ -74,6 +86,7 @@ module.exports = {
      * Scene state.
      * 
      * @name Phaser.Scenes.SLEEPING
+     * @readonly
      * @type {integer}
      * @since 3.0.0
      */
@@ -83,6 +96,7 @@ module.exports = {
      * Scene state.
      * 
      * @name Phaser.Scenes.SHUTDOWN
+     * @readonly
      * @type {integer}
      * @since 3.0.0
      */
@@ -92,9 +106,12 @@ module.exports = {
      * Scene state.
      * 
      * @name Phaser.Scenes.DESTROYED
+     * @readonly
      * @type {integer}
      * @since 3.0.0
      */
     DESTROYED: 9
 
 };
+
+module.exports = CONST;

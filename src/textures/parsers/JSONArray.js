@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Clone = require('../../utils/object/Clone');
@@ -11,7 +11,8 @@ var Clone = require('../../utils/object/Clone');
  * JSON format expected to match that defined by Texture Packer, with the frames property containing an array of Frames.
  *
  * @function Phaser.Textures.Parsers.JSONArray
- * @memberOf Phaser.Textures.Parsers
+ * @memberof Phaser.Textures.Parsers
+ * @private
  * @since 3.0.0
  *
  * @param {Phaser.Textures.Texture} texture - The Texture to add the Frames to.
@@ -25,7 +26,7 @@ var JSONArray = function (texture, sourceIndex, json)
     //  Malformed?
     if (!json['frames'] && !json['textures'])
     {
-        console.warn('Invalid Texture Atlas JSON Array given, missing \'frames\' and \'textures\' array');
+        console.warn('Invalid Texture Atlas JSON Array');
         return;
     }
 

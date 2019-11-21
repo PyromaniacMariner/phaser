@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Point = require('../point/Point');
@@ -12,10 +12,12 @@ var Point = require('../point/Point');
  * @function Phaser.Geom.Circle.Random
  * @since 3.0.0
  *
- * @param {Phaser.Geom.Circle} circle - The Circle to get a random point from.
- * @param {Phaser.Geom.Point|object} [point] - A Point or point-like object to set the random `x` and `y` values in.
+ * @generic {Phaser.Geom.Point} O - [out,$return]
  *
- * @return {Phaser.Geom.Point|object} A Point object with the random values set in the `x` and `y` properties.
+ * @param {Phaser.Geom.Circle} circle - The Circle to get a random point from.
+ * @param {(Phaser.Geom.Point|object)} [out] - A Point or point-like object to set the random `x` and `y` values in.
+ *
+ * @return {(Phaser.Geom.Point|object)} A Point object with the random values set in the `x` and `y` properties.
  */
 var Random = function (circle, out)
 {

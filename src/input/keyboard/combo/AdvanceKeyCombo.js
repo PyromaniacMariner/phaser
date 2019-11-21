@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 /**
@@ -9,10 +9,11 @@
  * Return `true` if it reached the end of the combo, `false` if not.
  *
  * @function Phaser.Input.Keyboard.KeyCombo.AdvanceKeyCombo
+ * @private
  * @since 3.0.0
  *
- * @param {KeyboardEvent} event - [description]
- * @param {Phaser.Input.Keyboard.KeyCombo} combo - [description]
+ * @param {KeyboardEvent} event - The native Keyboard Event.
+ * @param {Phaser.Input.Keyboard.KeyCombo} combo - The KeyCombo object to advance.
  *
  * @return {boolean} `true` if it reached the end of the combo, `false` if not.
  */

@@ -1,18 +1,78 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
+/**
+ * Implements a model view projection matrices.
+ * Pipelines can implement this for doing 2D and 3D rendering.
+ *
+ * @namespace Phaser.Renderer.WebGL.Pipelines.ModelViewProjection
+ * @since 3.0.0
+ */
 var ModelViewProjection = {
 
+    /**
+     * Dirty flag for checking if model matrix needs to be updated on GPU.
+     * 
+     * @name Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#modelMatrixDirty
+     * @type {boolean}
+     * @since 3.0.0
+     */
     modelMatrixDirty: false,
+
+    /**
+     * Dirty flag for checking if view matrix needs to be updated on GPU.
+     * 
+     * @name Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#viewMatrixDirty
+     * @type {boolean}
+     * @since 3.0.0
+     */
     viewMatrixDirty: false,
+
+    /**
+     * Dirty flag for checking if projection matrix needs to be updated on GPU.
+     * 
+     * @name Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#projectionMatrixDirty
+     * @type {boolean}
+     * @since 3.0.0
+     */
     projectionMatrixDirty: false,
+
+    /**
+     * Model matrix
+     * 
+     * @name Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#modelMatrix
+     * @type {?Float32Array}
+     * @since 3.0.0
+     */
     modelMatrix: null,
+
+    /**
+     * View matrix
+     * 
+     * @name Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#viewMatrix
+     * @type {?Float32Array}
+     * @since 3.0.0
+     */
     viewMatrix: null,
+
+    /**
+     * Projection matrix
+     * 
+     * @name Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#projectionMatrix
+     * @type {?Float32Array}
+     * @since 3.0.0
+     */
     projectionMatrix: null,
 
+    /**
+     * Initializes MVP matrices with an identity matrix
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#mvpInit
+     * @since 3.0.0
+     */
     mvpInit: function ()
     {
         this.modelMatrixDirty = true;
@@ -43,6 +103,12 @@ var ModelViewProjection = {
         return this;
     },
 
+    /**
+     * If dirty flags are set then the matrices are uploaded to the GPU.
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#mvpUpdate
+     * @since 3.0.0
+     */
     mvpUpdate: function ()
     {
         var program = this.program;
@@ -68,6 +134,12 @@ var ModelViewProjection = {
         return this;
     },
 
+    /**
+     * Loads an identity matrix to the model matrix
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#modelIdentity
+     * @since 3.0.0
+     */
     modelIdentity: function ()
     {
         var modelMatrix = this.modelMatrix;
@@ -94,6 +166,18 @@ var ModelViewProjection = {
         return this;
     },
 
+    /**
+     * Scale model matrix
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#modelScale
+     * @since 3.0.0
+     *
+     * @param {number} x - The x component.
+     * @param {number} y - The y component.
+     * @param {number} z - The z component.
+     *
+     * @return {this} This Model View Projection.
+     */
     modelScale: function (x, y, z)
     {
         var modelMatrix = this.modelMatrix;
@@ -116,6 +200,18 @@ var ModelViewProjection = {
         return this;
     },
 
+    /**
+     * Translate model matrix
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#modelTranslate
+     * @since 3.0.0
+     *
+     * @param {number} x - The x component.
+     * @param {number} y - The y component.
+     * @param {number} z - The z component.
+     *
+     * @return {this} This Model View Projection.
+     */
     modelTranslate: function (x, y, z)
     {
         var modelMatrix = this.modelMatrix;
@@ -130,6 +226,16 @@ var ModelViewProjection = {
         return this;
     },
 
+    /**
+     * Rotates the model matrix in the X axis.
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#modelRotateX
+     * @since 3.0.0
+     *
+     * @param {number} radians - The amount to rotate by.
+     *
+     * @return {this} This Model View Projection.
+     */
     modelRotateX: function (radians)
     {
         var modelMatrix = this.modelMatrix;
@@ -158,6 +264,16 @@ var ModelViewProjection = {
         return this;
     },
 
+    /**
+     * Rotates the model matrix in the Y axis.
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#modelRotateY
+     * @since 3.0.0
+     *
+     * @param {number} radians - The amount to rotate by.
+     *
+     * @return {this} This Model View Projection.
+     */
     modelRotateY: function (radians)
     {
         var modelMatrix = this.modelMatrix;
@@ -185,7 +301,17 @@ var ModelViewProjection = {
         
         return this;
     },
-
+    
+    /**
+     * Rotates the model matrix in the Z axis.
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#modelRotateZ
+     * @since 3.0.0
+     *
+     * @param {number} radians - The amount to rotate by.
+     *
+     * @return {this} This Model View Projection.
+     */
     modelRotateZ: function (radians)
     {
         var modelMatrix = this.modelMatrix;
@@ -214,6 +340,14 @@ var ModelViewProjection = {
         return this;
     },
 
+    /**
+     * Loads identity matrix into the view matrix
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#viewIdentity
+     * @since 3.0.0
+     *
+     * @return {this} This Model View Projection.
+     */
     viewIdentity: function ()
     {
         var viewMatrix = this.viewMatrix;
@@ -239,7 +373,19 @@ var ModelViewProjection = {
         
         return this;
     },
-
+    
+    /**
+     * Scales view matrix
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#viewScale
+     * @since 3.0.0
+     *
+     * @param {number} x - The x component.
+     * @param {number} y - The y component.
+     * @param {number} z - The z component.
+     *
+     * @return {this} This Model View Projection.
+     */
     viewScale: function (x, y, z)
     {
         var viewMatrix = this.viewMatrix;
@@ -262,6 +408,18 @@ var ModelViewProjection = {
         return this;
     },
 
+    /**
+     * Translates view matrix
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#viewTranslate
+     * @since 3.0.0
+     *
+     * @param {number} x - The x component.
+     * @param {number} y - The y component.
+     * @param {number} z - The z component.
+     *
+     * @return {this} This Model View Projection.
+     */
     viewTranslate: function (x, y, z)
     {
         var viewMatrix = this.viewMatrix;
@@ -275,7 +433,17 @@ var ModelViewProjection = {
 
         return this;
     },
-
+    
+    /**
+     * Rotates view matrix in the X axis.
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#viewRotateX
+     * @since 3.0.0
+     *
+     * @param {number} radians - The amount to rotate by.
+     *
+     * @return {this} This Model View Projection.
+     */
     viewRotateX: function (radians)
     {
         var viewMatrix = this.viewMatrix;
@@ -303,7 +471,17 @@ var ModelViewProjection = {
 
         return this;
     },
-
+    
+    /**
+     * Rotates view matrix in the Y axis.
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#viewRotateY
+     * @since 3.0.0
+     *
+     * @param {number} radians - The amount to rotate by.
+     *
+     * @return {this} This Model View Projection.
+     */
     viewRotateY: function (radians)
     {
         var viewMatrix = this.viewMatrix;
@@ -331,7 +509,17 @@ var ModelViewProjection = {
         
         return this;
     },
-
+    
+    /**
+     * Rotates view matrix in the Z axis.
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#viewRotateZ
+     * @since 3.0.0
+     *
+     * @param {number} radians - The amount to rotate by.
+     *
+     * @return {this} This Model View Projection.
+     */
     viewRotateZ: function (radians)
     {
         var viewMatrix = this.viewMatrix;
@@ -360,6 +548,16 @@ var ModelViewProjection = {
         return this;
     },
 
+    /**
+     * Loads a 2D view matrix (3x2 matrix) into a 4x4 view matrix 
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#viewLoad2D
+     * @since 3.0.0
+     *
+     * @param {Float32Array} matrix2D - The Matrix2D.
+     *
+     * @return {this} This Model View Projection.
+     */
     viewLoad2D: function (matrix2D)
     {
         var vm = this.viewMatrix;
@@ -386,6 +584,17 @@ var ModelViewProjection = {
         return this;
     },
 
+
+    /**
+     * Copies a 4x4 matrix into the view matrix
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#viewLoad
+     * @since 3.0.0
+     *
+     * @param {Float32Array} matrix - The Matrix2D.
+     *
+     * @return {this} This Model View Projection.
+     */
     viewLoad: function (matrix)
     {
         var vm = this.viewMatrix;
@@ -411,7 +620,15 @@ var ModelViewProjection = {
 
         return this;
     },
-
+    
+    /**
+     * Loads identity matrix into the projection matrix.
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#projIdentity
+     * @since 3.0.0
+     *
+     * @return {this} This Model View Projection.
+     */
     projIdentity: function ()
     {
         var projectionMatrix = this.projectionMatrix;
@@ -438,6 +655,21 @@ var ModelViewProjection = {
         return this;
     },
 
+    /**
+     * Sets up an orthographic projection matrix
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#projOrtho
+     * @since 3.0.0
+     *
+     * @param {number} left - The left value.
+     * @param {number} right - The right value.
+     * @param {number} bottom - The bottom value.
+     * @param {number} top - The top value.
+     * @param {number} near - The near value.
+     * @param {number} far - The far value.
+     *
+     * @return {this} This Model View Projection.
+     */
     projOrtho: function (left, right, bottom, top, near, far)
     {
         var projectionMatrix = this.projectionMatrix;
@@ -463,13 +695,27 @@ var ModelViewProjection = {
         projectionMatrix[15] = 1.0;
 
         this.projectionMatrixDirty = true;
+
         return this;
     },
-
-    projPersp: function (fovy, aspectRatio, near, far)
+    
+    /**
+     * Sets up a perspective projection matrix
+     * 
+     * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#projPersp
+     * @since 3.0.0
+     *
+     * @param {number} fovY - The fov value.
+     * @param {number} aspectRatio - The aspectRatio value.
+     * @param {number} near - The near value.
+     * @param {number} far - The far value.
+     *
+     * @return {this} This Model View Projection.
+     */
+    projPersp: function (fovY, aspectRatio, near, far)
     {
         var projectionMatrix = this.projectionMatrix;
-        var fov = 1.0 / Math.tan(fovy / 2.0);
+        var fov = 1.0 / Math.tan(fovY / 2.0);
         var nearFar = 1.0 / (near - far);
         
         projectionMatrix[0] = fov / aspectRatio;
@@ -490,6 +736,7 @@ var ModelViewProjection = {
         projectionMatrix[15] = 0.0;
         
         this.projectionMatrixDirty = true;
+
         return this;
     }
 };

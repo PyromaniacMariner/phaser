@@ -1,41 +1,51 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
+var BaseCamera = require('./BaseCamera');
+var CanvasPool = require('../../display/canvas/CanvasPool');
+var CenterOn = require('../../geom/rectangle/CenterOn');
+var Clamp = require('../../math/Clamp');
 var Class = require('../../utils/Class');
-var DegToRad = require('../../math/DegToRad');
+var Components = require('../../gameobjects/components');
+var Effects = require('./effects');
+var Linear = require('../../math/Linear');
 var Rectangle = require('../../geom/rectangle/Rectangle');
-var TransformMatrix = require('../../gameobjects/components/TransformMatrix');
-var ValueToColor = require('../../display/color/ValueToColor');
 var Vector2 = require('../../math/Vector2');
 
 /**
- * @typedef {object} JSONCamera
- *
- * @property {string} name - The name of the camera
- * @property {number} x - The horizontal position of camera
- * @property {number} y - The vertical position of camera
- * @property {number} width - The width size of camera
- * @property {number} height - The height size of camera
- * @property {number} zoom - The zoom of camera
- * @property {number} rotation - The rotation of camera
- * @property {boolean} roundPixels - The round pixels st status of camera
- * @property {number} scrollX - The horizontal scroll of camera
- * @property {number} scrollY - The vertical scroll of camera
- * @property {string} backgroundColor - The background color of camera
- * @property {object} [bounds] - The bounds of camera // TODO 19/03/2018 Create BoundsObject ({x:number,y:number,width:number,height:number})
- */
-
-/**
  * @classdesc
- * [description]
+ * A Camera.
+ *
+ * The Camera is the way in which all games are rendered in Phaser. They provide a view into your game world,
+ * and can be positioned, rotated, zoomed and scrolled accordingly.
+ *
+ * A Camera consists of two elements: The viewport and the scroll values.
+ *
+ * The viewport is the physical position and size of the Camera within your game. Cameras, by default, are
+ * created the same size as your game, but their position and size can be set to anything. This means if you
+ * wanted to create a camera that was 320x200 in size, positioned in the bottom-right corner of your game,
+ * you'd adjust the viewport to do that (using methods like `setViewport` and `setSize`).
+ *
+ * If you wish to change where the Camera is looking in your game, then you scroll it. You can do this
+ * via the properties `scrollX` and `scrollY` or the method `setScroll`. Scrolling has no impact on the
+ * viewport, and changing the viewport has no impact on the scrolling.
+ *
+ * By default a Camera will render all Game Objects it can see. You can change this using the `ignore` method,
+ * allowing you to filter Game Objects out on a per-Camera basis.
+ *
+ * A Camera also has built-in special effects including Fade, Flash and Camera Shake.
  *
  * @class Camera
- * @memberOf Phaser.Cameras.Scene2D
+ * @memberof Phaser.Cameras.Scene2D
  * @constructor
  * @since 3.0.0
+ *
+ * @extends Phaser.Cameras.Scene2D.BaseCamera
+ * @extends Phaser.GameObjects.Components.Flip
+ * @extends Phaser.GameObjects.Components.Tint
  *
  * @param {number} x - The x position of the Camera, relative to the top-left of the game canvas.
  * @param {number} y - The y position of the Camera, relative to the top-left of the game canvas.
@@ -44,95 +54,18 @@ var Vector2 = require('../../math/Vector2');
  */
 var Camera = new Class({
 
+    Extends: BaseCamera,
+
+    Mixins: [
+        Components.Flip,
+        Components.Tint
+    ],
+
     initialize:
 
     function Camera (x, y, width, height)
     {
-        /**
-         * A reference to the Scene this camera belongs to.
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#scene
-         * @type {Phaser.Scene}
-         * @since 3.0.0
-         */
-        this.scene;
-
-        /**
-         * The name of the Camera. This is left empty for your own use.
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#name
-         * @type {string}
-         * @default ''
-         * @since 3.0.0
-         */
-        this.name = '';
-
-        /**
-         * The x position of the Camera, relative to the top-left of the game canvas.
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#x
-         * @type {number}
-         * @since 3.0.0
-         */
-        this.x = x;
-
-        /**
-         * The y position of the Camera, relative to the top-left of the game canvas.
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#y
-         * @type {number}
-         * @since 3.0.0
-         */
-        this.y = y;
-
-        /**
-         * The width of the Camera, in pixels.
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#width
-         * @type {number}
-         * @since 3.0.0
-         */
-        this.width = width;
-
-        /**
-         * The height of the Camera, in pixels.
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#height
-         * @type {number}
-         * @since 3.0.0
-         */
-        this.height = height;
-
-        /**
-         * Should this camera round its pixel values to integers?
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#roundPixels
-         * @type {boolean}
-         * @default false
-         * @since 3.0.0
-         */
-        this.roundPixels = false;
-
-        /**
-         * Is this Camera using a bounds to restrict scrolling movement?
-         * Set this property along with the bounds via `Camera.setBounds`.
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#useBounds
-         * @type {boolean}
-         * @default false
-         * @since 3.0.0
-         */
-        this.useBounds = false;
-
-        /**
-         * The bounds the camera is restrained to during scrolling.
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_bounds
-         * @type {Phaser.Geom.Rectangle}
-         * @private
-         * @since 3.0.0
-         */
-        this._bounds = new Rectangle();
+        BaseCamera.call(this, x, y, width, height);
 
         /**
          * Does this Camera allow the Game Objects it renders to receive input events?
@@ -145,296 +78,111 @@ var Camera = new Class({
         this.inputEnabled = true;
 
         /**
-         * The horizontal scroll position of this camera.
-         * Optionally restricted via the Camera bounds.
+         * The Camera Fade effect handler.
+         * To fade this camera see the `Camera.fade` methods.
          *
-         * @name Phaser.Cameras.Scene2D.Camera#scrollX
-         * @type {number}
-         * @default 0
-         * @since 3.0.0
+         * @name Phaser.Cameras.Scene2D.Camera#fadeEffect
+         * @type {Phaser.Cameras.Scene2D.Effects.Fade}
+         * @since 3.5.0
          */
-        this.scrollX = 0;
+        this.fadeEffect = new Effects.Fade(this);
 
         /**
-         * The vertical scroll position of this camera.
-         * Optionally restricted via the Camera bounds.
+         * The Camera Flash effect handler.
+         * To flash this camera see the `Camera.flash` method.
          *
-         * @name Phaser.Cameras.Scene2D.Camera#scrollY
-         * @type {number}
-         * @default 0
-         * @since 3.0.0
+         * @name Phaser.Cameras.Scene2D.Camera#flashEffect
+         * @type {Phaser.Cameras.Scene2D.Effects.Flash}
+         * @since 3.5.0
          */
-        this.scrollY = 0;
+        this.flashEffect = new Effects.Flash(this);
 
         /**
-         * The Camera zoom value. Change this value to zoom in, or out of, a Scene.
-         * Set to 1 to return to the default zoom level.
+         * The Camera Shake effect handler.
+         * To shake this camera see the `Camera.shake` method.
          *
-         * @name Phaser.Cameras.Scene2D.Camera#zoom
-         * @type {float}
-         * @default 1
-         * @since 3.0.0
+         * @name Phaser.Cameras.Scene2D.Camera#shakeEffect
+         * @type {Phaser.Cameras.Scene2D.Effects.Shake}
+         * @since 3.5.0
          */
-        this.zoom = 1;
+        this.shakeEffect = new Effects.Shake(this);
 
         /**
-         * The rotation of the Camera. This influences the rendering of all Game Objects visible by this camera.
+         * The Camera Pan effect handler.
+         * To pan this camera see the `Camera.pan` method.
          *
-         * @name Phaser.Cameras.Scene2D.Camera#rotation
-         * @type {number}
-         * @default 0
-         * @since 3.0.0
+         * @name Phaser.Cameras.Scene2D.Camera#panEffect
+         * @type {Phaser.Cameras.Scene2D.Effects.Pan}
+         * @since 3.11.0
          */
-        this.rotation = 0;
+        this.panEffect = new Effects.Pan(this);
 
         /**
-         * A local transform matrix used for internal calculations.
+         * The Camera Zoom effect handler.
+         * To zoom this camera see the `Camera.zoom` method.
          *
-         * @name Phaser.Cameras.Scene2D.Camera#matrix
-         * @type {TransformMatrix}
-         * @since 3.0.0
+         * @name Phaser.Cameras.Scene2D.Camera#zoomEffect
+         * @type {Phaser.Cameras.Scene2D.Effects.Zoom}
+         * @since 3.11.0
          */
-        this.matrix = new TransformMatrix(1, 0, 0, 1, 0, 0);
+        this.zoomEffect = new Effects.Zoom(this);
 
         /**
-         * Does this Camera have a transparent background?
+         * The linear interpolation value to use when following a target.
          *
-         * @name Phaser.Cameras.Scene2D.Camera#transparent
-         * @type {boolean}
-         * @default true
-         * @since 3.0.0
+         * Can also be set via `setLerp` or as part of the `startFollow` call.
+         *
+         * The default values of 1 means the camera will instantly snap to the target coordinates.
+         * A lower value, such as 0.1 means the camera will more slowly track the target, giving
+         * a smooth transition. You can set the horizontal and vertical values independently, and also
+         * adjust this value in real-time during your game.
+         *
+         * Be sure to keep the value between 0 and 1. A value of zero will disable tracking on that axis.
+         *
+         * @name Phaser.Cameras.Scene2D.Camera#lerp
+         * @type {Phaser.Math.Vector2}
+         * @since 3.9.0
          */
-        this.transparent = true;
+        this.lerp = new Vector2(1, 1);
 
         /**
-         * TODO
+         * The values stored in this property are subtracted from the Camera targets position, allowing you to
+         * offset the camera from the actual target x/y coordinates by this amount.
+         * Can also be set via `setFollowOffset` or as part of the `startFollow` call.
          *
-         * @name Phaser.Cameras.Scene2D.Camera#clearBeforeRender
-         * @type {boolean}
-         * @default true
-         * @since 3.0.0
+         * @name Phaser.Cameras.Scene2D.Camera#followOffset
+         * @type {Phaser.Math.Vector2}
+         * @since 3.9.0
          */
-        this.clearBeforeRender = true;
+        this.followOffset = new Vector2();
 
         /**
-         * The background color of this Camera. Only used if `transparent` is `false`.
+         * The Camera dead zone.
          *
-         * @name Phaser.Cameras.Scene2D.Camera#backgroundColor
-         * @type {Phaser.Display.Color}
-         * @since 3.0.0
+         * The deadzone is only used when the camera is following a target.
+         *
+         * It defines a rectangular region within which if the target is present, the camera will not scroll.
+         * If the target moves outside of this area, the camera will begin scrolling in order to follow it.
+         *
+         * The `lerp` values that you can set for a follower target also apply when using a deadzone.
+         *
+         * You can directly set this property to be an instance of a Rectangle. Or, you can use the
+         * `setDeadzone` method for a chainable approach.
+         *
+         * The rectangle you provide can have its dimensions adjusted dynamically, however, please
+         * note that its position is updated every frame, as it is constantly re-centered on the cameras mid point.
+         *
+         * Calling `setDeadzone` with no arguments will reset an active deadzone, as will setting this property
+         * to `null`.
+         *
+         * @name Phaser.Cameras.Scene2D.Camera#deadzone
+         * @type {?Phaser.Geom.Rectangle}
+         * @since 3.11.0
          */
-        this.backgroundColor = ValueToColor('rgba(0,0,0,0)');
+        this.deadzone = null;
 
         /**
-         * Should the camera cull Game Objects before rendering?
-         * In some special cases it may be beneficial to disable this.
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#disableCull
-         * @type {boolean}
-         * @default false
-         * @since 3.0.0
-         */
-        this.disableCull = false;
-
-        /**
-         * A temporary array of culled objects.
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#culledObjects
-         * @type {array}
-         * @default []
-         * @since 3.0.0
-         */
-        this.culledObjects = [];
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_shakeDuration
-         * @type {number}
-         * @private
-         * @default 0
-         * @since 3.0.0
-         */
-        this._shakeDuration = 0;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_shakeIntensity
-         * @type {number}
-         * @private
-         * @default 0
-         * @since 3.0.0
-         */
-        this._shakeIntensity = 0;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_shakeOffsetX
-         * @type {number}
-         * @private
-         * @default 0
-         * @since 3.0.0
-         */
-        this._shakeOffsetX = 0;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_shakeOffsetY
-         * @type {number}
-         * @private
-         * @default 0
-         * @since 3.0.0
-         */
-        this._shakeOffsetY = 0;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_shakeCallback
-         * @type {function}
-         * @private
-         * @default null
-         * @since 3.3.0
-         */
-        this._shakeCallback = null;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_fadeDuration
-         * @type {number}
-         * @private
-         * @default 0
-         * @since 3.0.0
-         */
-        this._fadeDuration = 0;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_fadeRed
-         * @type {number}
-         * @private
-         * @default 0
-         * @since 3.0.0
-         */
-        this._fadeRed = 0;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_fadeGreen
-         * @type {number}
-         * @private
-         * @default 0
-         * @since 3.0.0
-         */
-        this._fadeGreen = 0;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_fadeBlue
-         * @type {number}
-         * @private
-         * @default 0
-         * @since 3.0.0
-         */
-        this._fadeBlue = 0;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_fadeAlpha
-         * @type {number}
-         * @private
-         * @default 0
-         * @since 3.0.0
-         */
-        this._fadeAlpha = 0;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_fadeCallback
-         * @type {function}
-         * @private
-         * @default null
-         * @since 3.3.0
-         */
-        this._fadeCallback = null;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_flashDuration
-         * @type {number}
-         * @private
-         * @default 0
-         * @since 3.0.0
-         */
-        this._flashDuration = 0;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_flashRed
-         * @type {number}
-         * @private
-         * @default 1
-         * @since 3.0.0
-         */
-        this._flashRed = 1;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_flashGreen
-         * @type {number}
-         * @private
-         * @default 1
-         * @since 3.0.0
-         */
-        this._flashGreen = 1;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_flashBlue
-         * @type {number}
-         * @private
-         * @default 1
-         * @since 3.0.0
-         */
-        this._flashBlue = 1;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_flashAlpha
-         * @type {number}
-         * @private
-         * @default 0
-         * @since 3.0.0
-         */
-        this._flashAlpha = 0;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Cameras.Scene2D.Camera#_flashCallback
-         * @type {function}
-         * @private
-         * @default null
-         * @since 3.3.0
-         */
-        this._flashCallback = null;
-
-        /**
-         * [description]
+         * Internal follow target reference.
          *
          * @name Phaser.Cameras.Scene2D.Camera#_follow
          * @type {?any}
@@ -445,289 +193,326 @@ var Camera = new Class({
         this._follow = null;
 
         /**
-         * [description]
+         * Is this Camera rendering directly to the canvas or to a texture?
          *
-         * @name Phaser.Cameras.Scene2D.Camera#_id
-         * @type {integer}
-         * @private
-         * @default 0
-         * @since 3.0.0
+         * Enable rendering to texture with the method `setRenderToTexture` (just enabling this boolean won't be enough)
+         *
+         * Once enabled you can toggle it by switching this property.
+         *
+         * To properly remove a render texture you should call the `clearRenderToTexture()` method.
+         *
+         * @name Phaser.Cameras.Scene2D.Camera#renderToTexture
+         * @type {boolean}
+         * @default false
+         * @since 3.13.0
          */
-        this._id = 0;
+        this.renderToTexture = false;
+
+        /**
+         * If this Camera has been set to render to a texture then this holds a reference
+         * to the HTML Canvas Element that the Camera is drawing to.
+         *
+         * Enable texture rendering using the method `setRenderToTexture`.
+         *
+         * This is only populated if Phaser is running with the Canvas Renderer.
+         *
+         * @name Phaser.Cameras.Scene2D.Camera#canvas
+         * @type {HTMLCanvasElement}
+         * @since 3.13.0
+         */
+        this.canvas = null;
+
+        /**
+         * If this Camera has been set to render to a texture then this holds a reference
+         * to the Rendering Context belonging to the Canvas element the Camera is drawing to.
+         *
+         * Enable texture rendering using the method `setRenderToTexture`.
+         *
+         * This is only populated if Phaser is running with the Canvas Renderer.
+         *
+         * @name Phaser.Cameras.Scene2D.Camera#context
+         * @type {CanvasRenderingContext2D}
+         * @since 3.13.0
+         */
+        this.context = null;
+
+        /**
+         * If this Camera has been set to render to a texture then this holds a reference
+         * to the GL Texture belonging the Camera is drawing to.
+         *
+         * Enable texture rendering using the method `setRenderToTexture`.
+         *
+         * This is only set if Phaser is running with the WebGL Renderer.
+         *
+         * @name Phaser.Cameras.Scene2D.Camera#glTexture
+         * @type {?WebGLTexture}
+         * @since 3.13.0
+         */
+        this.glTexture = null;
+
+        /**
+         * If this Camera has been set to render to a texture then this holds a reference
+         * to the GL Frame Buffer belonging the Camera is drawing to.
+         *
+         * Enable texture rendering using the method `setRenderToTexture`.
+         *
+         * This is only set if Phaser is running with the WebGL Renderer.
+         *
+         * @name Phaser.Cameras.Scene2D.Camera#framebuffer
+         * @type {?WebGLFramebuffer}
+         * @since 3.13.0
+         */
+        this.framebuffer = null;
+
+        /**
+         * If this Camera has been set to render to a texture and to use a custom pipeline,
+         * then this holds a reference to the pipeline the Camera is drawing with.
+         *
+         * Enable texture rendering using the method `setRenderToTexture`.
+         *
+         * This is only set if Phaser is running with the WebGL Renderer.
+         *
+         * @name Phaser.Cameras.Scene2D.Camera#pipeline
+         * @type {any}
+         * @since 3.13.0
+         */
+        this.pipeline = null;
     },
 
     /**
-     * [description]
+     * Sets the Camera to render to a texture instead of to the main canvas.
      *
-     * @method Phaser.Cameras.Scene2D.Camera#centerToBounds
-     * @since 3.0.0
+     * The Camera will redirect all Game Objects it's asked to render to this texture.
+     *
+     * During the render sequence, the texture itself will then be rendered to the main canvas.
+     *
+     * Doing this gives you the ability to modify the texture before this happens,
+     * allowing for special effects such as Camera specific shaders, or post-processing
+     * on the texture.
+     *
+     * If running under Canvas the Camera will render to its `canvas` property.
+     *
+     * If running under WebGL the Camera will create a frame buffer, which is stored in its `framebuffer` and `glTexture` properties.
+     *
+     * If you set a camera to render to a texture then it will emit 2 events during the render loop:
+     *
+     * First, it will emit the event `prerender`. This happens right before any Game Object's are drawn to the Camera texture.
+     *
+     * Then, it will emit the event `postrender`. This happens after all Game Object's have been drawn, but right before the
+     * Camera texture is rendered to the main game canvas. It's the final point at which you can manipulate the texture before
+     * it appears in-game.
+     *
+     * You should not enable this unless you plan on actually using the texture it creates
+     * somehow, otherwise you're just doubling the work required to render your game.
+     *
+     * To temporarily disable rendering to a texture, toggle the `renderToTexture` boolean.
+     *
+     * If you no longer require the Camera to render to a texture, call the `clearRenderToTexture` method,
+     * which will delete the respective textures and free-up resources.
+     *
+     * @method Phaser.Cameras.Scene2D.Camera#setRenderToTexture
+     * @since 3.13.0
+     *
+     * @param {(string|Phaser.Renderer.WebGL.WebGLPipeline)} [pipeline] - An optional WebGL Pipeline to render with, can be either a string which is the name of the pipeline, or a pipeline reference.
      *
      * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
      */
-    centerToBounds: function ()
+    setRenderToTexture: function (pipeline)
     {
-        this.scrollX = (this._bounds.width * 0.5) - (this.width * 0.5);
-        this.scrollY = (this._bounds.height * 0.5) - (this.height * 0.5);
+        var renderer = this.scene.sys.game.renderer;
+
+        if (renderer.gl)
+        {
+            this.glTexture = renderer.createTextureFromSource(null, this.width, this.height, 0);
+            this.framebuffer = renderer.createFramebuffer(this.width, this.height, this.glTexture, false);
+        }
+        else
+        {
+            this.canvas = CanvasPool.create2D(this, this.width, this.height);
+            this.context = this.canvas.getContext('2d');
+        }
+
+        this.renderToTexture = true;
+
+        if (pipeline)
+        {
+            this.setPipeline(pipeline);
+        }
 
         return this;
     },
 
     /**
-     * [description]
+     * Sets the WebGL pipeline this Camera is using when rendering to a texture.
      *
-     * @method Phaser.Cameras.Scene2D.Camera#centerToSize
-     * @since 3.0.0
+     * You can pass either the string-based name of the pipeline, or a reference to the pipeline itself.
+     *
+     * Call this method with no arguments to clear any previously set pipeline.
+     *
+     * @method Phaser.Cameras.Scene2D.Camera#setPipeline
+     * @since 3.13.0
+     *
+     * @param {(string|Phaser.Renderer.WebGL.WebGLPipeline)} [pipeline] - The WebGL Pipeline to render with, can be either a string which is the name of the pipeline, or a pipeline reference. Or if left empty it will clear the pipeline.
      *
      * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
      */
-    centerToSize: function ()
+    setPipeline: function (pipeline)
     {
-        this.scrollX = this.width * 0.5;
-        this.scrollY = this.height * 0.5;
+        if (typeof pipeline === 'string')
+        {
+            var renderer = this.scene.sys.game.renderer;
+
+            if (renderer.gl && renderer.hasPipeline(pipeline))
+            {
+                this.pipeline = renderer.getPipeline(pipeline);
+            }
+        }
+        else
+        {
+            this.pipeline = pipeline;
+        }
 
         return this;
     },
 
     /**
-     * [description]
+     * If this Camera was set to render to a texture, this will clear the resources it was using and
+     * redirect it to render back to the primary Canvas again.
      *
-     * @method Phaser.Cameras.Scene2D.Camera#cull
-     * @since 3.0.0
+     * If you only wish to temporarily disable rendering to a texture then you can toggle the
+     * property `renderToTexture` instead.
      *
-     * @param {array} renderableObjects - [description]
+     * @method Phaser.Cameras.Scene2D.Camera#clearRenderToTexture
+     * @since 3.13.0
      *
-     * @return {array} [description]
+     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
      */
-    cull: function (renderableObjects)
+    clearRenderToTexture: function ()
     {
-        if (this.disableCull)
+        if (!this.scene)
         {
-            return renderableObjects;
+            return;
         }
 
-        var cameraMatrix = this.matrix.matrix;
+        var renderer = this.scene.sys.game.renderer;
 
-        var mva = cameraMatrix[0];
-        var mvb = cameraMatrix[1];
-        var mvc = cameraMatrix[2];
-        var mvd = cameraMatrix[3];
-
-        /* First Invert Matrix */
-        var determinant = (mva * mvd) - (mvb * mvc);
-
-        if (!determinant)
+        if (!renderer)
         {
-            return renderableObjects;
+            return;
         }
 
-        var mve = cameraMatrix[4];
-        var mvf = cameraMatrix[5];
-
-        var scrollX = this.scrollX;
-        var scrollY = this.scrollY;
-        var cameraW = this.width;
-        var cameraH = this.height;
-        var culledObjects = this.culledObjects;
-        var length = renderableObjects.length;
-
-        determinant = 1 / determinant;
-
-        culledObjects.length = 0;
-
-        for (var index = 0; index < length; ++index)
+        if (renderer.gl)
         {
-            var object = renderableObjects[index];
-
-            if (!object.hasOwnProperty('width'))
+            if (this.framebuffer)
             {
-                culledObjects.push(object);
-                continue;
+                renderer.deleteFramebuffer(this.framebuffer);
             }
 
-            var objectW = object.width;
-            var objectH = object.height;
-            var objectX = (object.x - (scrollX * object.scrollFactorX)) - (objectW * object.originX);
-            var objectY = (object.y - (scrollY * object.scrollFactorY)) - (objectH * object.originY);
-            var tx = (objectX * mva + objectY * mvc + mve);
-            var ty = (objectX * mvb + objectY * mvd + mvf);
-            var tw = ((objectX + objectW) * mva + (objectY + objectH) * mvc + mve);
-            var th = ((objectX + objectW) * mvb + (objectY + objectH) * mvd + mvf);
-            var cullW = cameraW + objectW;
-            var cullH = cameraH + objectH;
-
-            if (tx > -objectW || ty > -objectH || tx < cullW || ty < cullH ||
-                tw > -objectW || th > -objectH || tw < cullW || th < cullH)
+            if (this.glTexture)
             {
-                culledObjects.push(object);
+                renderer.deleteTexture(this.glTexture);
             }
+
+            this.framebuffer = null;
+            this.glTexture = null;
+            this.pipeline = null;
+        }
+        else
+        {
+            CanvasPool.remove(this);
+
+            this.canvas = null;
+            this.context = null;
         }
 
-        return culledObjects;
+        this.renderToTexture = false;
+
+        return this;
     },
 
     /**
-     * [description]
+     * Sets the Camera dead zone.
      *
-     * @method Phaser.Cameras.Scene2D.Camera#cullHitTest
-     * @since 3.0.0
+     * The deadzone is only used when the camera is following a target.
      *
-     * @param {array} interactiveObjects - [description]
+     * It defines a rectangular region within which if the target is present, the camera will not scroll.
+     * If the target moves outside of this area, the camera will begin scrolling in order to follow it.
      *
-     * @return {array} [description]
+     * The deadzone rectangle is re-positioned every frame so that it is centered on the mid-point
+     * of the camera. This allows you to use the object for additional game related checks, such as
+     * testing if an object is within it or not via a Rectangle.contains call.
+     *
+     * The `lerp` values that you can set for a follower target also apply when using a deadzone.
+     *
+     * Calling this method with no arguments will reset an active deadzone.
+     *
+     * @method Phaser.Cameras.Scene2D.Camera#setDeadzone
+     * @since 3.11.0
+     *
+     * @param {number} [width] - The width of the deadzone rectangle in pixels. If not specified the deadzone is removed.
+     * @param {number} [height] - The height of the deadzone rectangle in pixels.
+     *
+     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
      */
-    cullHitTest: function (interactiveObjects)
+    setDeadzone: function (width, height)
     {
-        if (this.disableCull)
+        if (width === undefined)
         {
-            return interactiveObjects;
+            this.deadzone = null;
         }
-
-        var cameraMatrix = this.matrix.matrix;
-
-        var mva = cameraMatrix[0];
-        var mvb = cameraMatrix[1];
-        var mvc = cameraMatrix[2];
-        var mvd = cameraMatrix[3];
-
-        /* First Invert Matrix */
-        var determinant = (mva * mvd) - (mvb * mvc);
-
-        if (!determinant)
+        else
         {
-            return interactiveObjects;
-        }
-
-        var mve = cameraMatrix[4];
-        var mvf = cameraMatrix[5];
-
-        var scrollX = this.scrollX;
-        var scrollY = this.scrollY;
-        var cameraW = this.width;
-        var cameraH = this.height;
-        var length = interactiveObjects.length;
-
-        determinant = 1 / determinant;
-
-        var culledObjects = [];
-
-        for (var index = 0; index < length; ++index)
-        {
-            var object = interactiveObjects[index].gameObject;
-
-            if (!object.hasOwnProperty('width'))
+            if (this.deadzone)
             {
-                culledObjects.push(interactiveObjects[index]);
-                continue;
+                this.deadzone.width = width;
+                this.deadzone.height = height;
+            }
+            else
+            {
+                this.deadzone = new Rectangle(0, 0, width, height);
             }
 
-            var objectW = object.width;
-            var objectH = object.height;
-            var objectX = (object.x - (scrollX * object.scrollFactorX)) - (objectW * object.originX);
-            var objectY = (object.y - (scrollY * object.scrollFactorY)) - (objectH * object.originY);
-            var tx = (objectX * mva + objectY * mvc + mve);
-            var ty = (objectX * mvb + objectY * mvd + mvf);
-            var tw = ((objectX + objectW) * mva + (objectY + objectH) * mvc + mve);
-            var th = ((objectX + objectW) * mvb + (objectY + objectH) * mvd + mvf);
-            var cullW = cameraW + objectW;
-            var cullH = cameraH + objectH;
-
-            if (tx > -objectW || ty > -objectH || tx < cullW || ty < cullH ||
-                tw > -objectW || th > -objectH || tw < cullW || th < cullH)
+            if (this._follow)
             {
-                culledObjects.push(interactiveObjects[index]);
+                var originX = this.width / 2;
+                var originY = this.height / 2;
+
+                var fx = this._follow.x - this.followOffset.x;
+                var fy = this._follow.y - this.followOffset.y;
+
+                this.midPoint.set(fx, fy);
+
+                this.scrollX = fx - originX;
+                this.scrollY = fy - originY;
             }
+
+            CenterOn(this.deadzone, this.midPoint.x, this.midPoint.y);
         }
 
-        return culledObjects;
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Cameras.Scene2D.Camera#cullTilemap
-     * @since 3.0.0
-     *
-     * @param {array} tilemap - [description]
-     *
-     * @return {array} [description]
-     */
-    cullTilemap: function (tilemap)
-    {
-        var cameraMatrix = this.matrix.matrix;
-
-        var mva = cameraMatrix[0];
-        var mvb = cameraMatrix[1];
-        var mvc = cameraMatrix[2];
-        var mvd = cameraMatrix[3];
-
-        /* First Invert Matrix */
-        var determinant = (mva * mvd) - (mvb * mvc);
-
-        if (!determinant)
-        {
-            return tiles;
-        }
-
-        var mve = cameraMatrix[4];
-        var mvf = cameraMatrix[5];
-        var tiles = tilemap.tiles;
-        var scrollX = this.scrollX;
-        var scrollY = this.scrollY;
-        var cameraW = this.width;
-        var cameraH = this.height;
-        var culledObjects = this.culledObjects;
-        var length = tiles.length;
-        var tileW = tilemap.tileWidth;
-        var tileH = tilemap.tileHeight;
-        var cullW = cameraW + tileW;
-        var cullH = cameraH + tileH;
-        var scrollFactorX = tilemap.scrollFactorX;
-        var scrollFactorY = tilemap.scrollFactorY;
-
-        determinant = 1 / determinant;
-
-        culledObjects.length = 0;
-
-        for (var index = 0; index < length; ++index)
-        {
-            var tile = tiles[index];
-            var tileX = (tile.x - (scrollX * scrollFactorX));
-            var tileY = (tile.y - (scrollY * scrollFactorY));
-            var tx = (tileX * mva + tileY * mvc + mve);
-            var ty = (tileX * mvb + tileY * mvd + mvf);
-            var tw = ((tileX + tileW) * mva + (tileY + tileH) * mvc + mve);
-            var th = ((tileX + tileW) * mvb + (tileY + tileH) * mvd + mvf);
-
-            if (tx > -tileW && ty > -tileH && tw < cullW && th < cullH)
-            {
-                culledObjects.push(tile);
-            }
-        }
-
-        return culledObjects;
+        return this;
     },
 
     /**
      * Fades the Camera in from the given color over the duration specified.
      *
      * @method Phaser.Cameras.Scene2D.Camera#fadeIn
+     * @fires Phaser.Cameras.Scene2D.Events#FADE_IN_START
+     * @fires Phaser.Cameras.Scene2D.Events#FADE_IN_COMPLETE
      * @since 3.3.0
      *
-     * @param {number} duration - The duration of the effect in milliseconds.
-     * @param {function} [callback] - An optional callback to invoke when the fade completes. Will be sent one argument - a reference to this camera.
-     * @param {number} [red=0] - The value to fade the red channel from. A value between 0 and 1.
-     * @param {number} [green=0] - The value to fade the green channel from. A value between 0 and 1.
-     * @param {number} [blue=0] - The value to fade the blue channel from. A value between 0 and 1.
+     * @param {integer} [duration=1000] - The duration of the effect in milliseconds.
+     * @param {integer} [red=0] - The amount to fade the red channel towards. A value between 0 and 255.
+     * @param {integer} [green=0] - The amount to fade the green channel towards. A value between 0 and 255.
+     * @param {integer} [blue=0] - The amount to fade the blue channel towards. A value between 0 and 255.
+     * @param {function} [callback] - This callback will be invoked every frame for the duration of the effect.
+     * It is sent two arguments: A reference to the camera and a progress amount between 0 and 1 indicating how complete the effect is.
+     * @param {any} [context] - The context in which the callback is invoked. Defaults to the Scene to which the Camera belongs.
      *
      * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
      */
-    fadeIn: function (duration, callback, red, green, blue)
+    fadeIn: function (duration, red, green, blue, callback, context)
     {
-        if (red === undefined) { red = 0; }
-        if (green === undefined) { green = 0; }
-        if (blue === undefined) { blue = 0; }
-
-        return this.flash(duration, red, green, blue, true, callback);
+        return this.fadeEffect.start(false, duration, red, green, blue, true, callback, context);
     },
 
     /**
@@ -735,577 +520,391 @@ var Camera = new Class({
      * This is an alias for Camera.fade that forces the fade to start, regardless of existing fades.
      *
      * @method Phaser.Cameras.Scene2D.Camera#fadeOut
+     * @fires Phaser.Cameras.Scene2D.Events#FADE_OUT_START
+     * @fires Phaser.Cameras.Scene2D.Events#FADE_OUT_COMPLETE
      * @since 3.3.0
      *
-     * @param {number} duration - The duration of the effect in milliseconds.
-     * @param {function} [callback] - An optional callback to invoke when the fade completes. Will be sent one argument - a reference to this camera.
-     * @param {number} [red=0] - The value to fade the red channel from. A value between 0 and 1.
-     * @param {number} [green=0] - The value to fade the green channel from. A value between 0 and 1.
-     * @param {number} [blue=0] - The value to fade the blue channel from. A value between 0 and 1.
+     * @param {integer} [duration=1000] - The duration of the effect in milliseconds.
+     * @param {integer} [red=0] - The amount to fade the red channel towards. A value between 0 and 255.
+     * @param {integer} [green=0] - The amount to fade the green channel towards. A value between 0 and 255.
+     * @param {integer} [blue=0] - The amount to fade the blue channel towards. A value between 0 and 255.
+     * @param {function} [callback] - This callback will be invoked every frame for the duration of the effect.
+     * It is sent two arguments: A reference to the camera and a progress amount between 0 and 1 indicating how complete the effect is.
+     * @param {any} [context] - The context in which the callback is invoked. Defaults to the Scene to which the Camera belongs.
      *
      * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
      */
-    fadeOut: function (duration, callback, red, green, blue)
+    fadeOut: function (duration, red, green, blue, callback, context)
     {
-        if (red === undefined) { red = 0; }
-        if (green === undefined) { green = 0; }
-        if (blue === undefined) { blue = 0; }
-
-        return this.fade(duration, red, green, blue, true, callback);
+        return this.fadeEffect.start(true, duration, red, green, blue, true, callback, context);
     },
 
     /**
-     * Fades the Camera to the given color over the duration specified.
+     * Fades the Camera from the given color to transparent over the duration specified.
+     *
+     * @method Phaser.Cameras.Scene2D.Camera#fadeFrom
+     * @fires Phaser.Cameras.Scene2D.Events#FADE_IN_START
+     * @fires Phaser.Cameras.Scene2D.Events#FADE_IN_COMPLETE
+     * @since 3.5.0
+     *
+     * @param {integer} [duration=1000] - The duration of the effect in milliseconds.
+     * @param {integer} [red=0] - The amount to fade the red channel towards. A value between 0 and 255.
+     * @param {integer} [green=0] - The amount to fade the green channel towards. A value between 0 and 255.
+     * @param {integer} [blue=0] - The amount to fade the blue channel towards. A value between 0 and 255.
+     * @param {boolean} [force=false] - Force the effect to start immediately, even if already running.
+     * @param {function} [callback] - This callback will be invoked every frame for the duration of the effect.
+     * It is sent two arguments: A reference to the camera and a progress amount between 0 and 1 indicating how complete the effect is.
+     * @param {any} [context] - The context in which the callback is invoked. Defaults to the Scene to which the Camera belongs.
+     *
+     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
+     */
+    fadeFrom: function (duration, red, green, blue, force, callback, context)
+    {
+        return this.fadeEffect.start(false, duration, red, green, blue, force, callback, context);
+    },
+
+    /**
+     * Fades the Camera from transparent to the given color over the duration specified.
      *
      * @method Phaser.Cameras.Scene2D.Camera#fade
+     * @fires Phaser.Cameras.Scene2D.Events#FADE_OUT_START
+     * @fires Phaser.Cameras.Scene2D.Events#FADE_OUT_COMPLETE
      * @since 3.0.0
      *
-     * @param {number} duration - The duration of the effect in milliseconds.
-     * @param {number} [red=0] - The value to fade the red channel to. A value between 0 and 1.
-     * @param {number} [green=0] - The value to fade the green channel to. A value between 0 and 1.
-     * @param {number} [blue=0] - The value to fade the blue channel to. A value between 0 and 1.
-     * @param {boolean} [force=false] - Force the fade effect to start immediately, even if already running.
-     * @param {function} [callback] - An optional callback to invoke when the fade completes. Will be sent one argument - a reference to this camera.
+     * @param {integer} [duration=1000] - The duration of the effect in milliseconds.
+     * @param {integer} [red=0] - The amount to fade the red channel towards. A value between 0 and 255.
+     * @param {integer} [green=0] - The amount to fade the green channel towards. A value between 0 and 255.
+     * @param {integer} [blue=0] - The amount to fade the blue channel towards. A value between 0 and 255.
+     * @param {boolean} [force=false] - Force the effect to start immediately, even if already running.
+     * @param {function} [callback] - This callback will be invoked every frame for the duration of the effect.
+     * It is sent two arguments: A reference to the camera and a progress amount between 0 and 1 indicating how complete the effect is.
+     * @param {any} [context] - The context in which the callback is invoked. Defaults to the Scene to which the Camera belongs.
      *
      * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
      */
-    fade: function (duration, red, green, blue, force, callback)
+    fade: function (duration, red, green, blue, force, callback, context)
     {
-        if (!duration) { duration = Number.MIN_VALUE; }
-        if (red === undefined) { red = 0; }
-        if (green === undefined) { green = 0; }
-        if (blue === undefined) { blue = 0; }
-        if (force === undefined) { force = false; }
-        if (callback === undefined) { callback = null; }
-
-        if (!force && this._fadeAlpha > 0)
-        {
-            return this;
-        }
-
-        this._fadeRed = red;
-        this._fadeGreen = green;
-        this._fadeBlue = blue;
-        this._fadeCallback = callback;
-        this._fadeDuration = duration;
-        this._fadeAlpha = Number.MIN_VALUE;
-
-        return this;
+        return this.fadeEffect.start(true, duration, red, green, blue, force, callback, context);
     },
 
     /**
-     * Flashes the Camera to the given color over the duration specified.
+     * Flashes the Camera by setting it to the given color immediately and then fading it away again quickly over the duration specified.
      *
      * @method Phaser.Cameras.Scene2D.Camera#flash
+     * @fires Phaser.Cameras.Scene2D.Events#FLASH_START
+     * @fires Phaser.Cameras.Scene2D.Events#FLASH_COMPLETE
      * @since 3.0.0
      *
-     * @param {number} duration - The duration of the effect in milliseconds.
-     * @param {number} [red=1] - The value to flash the red channel to. A value between 0 and 1.
-     * @param {number} [green=1] - The value to flash the green channel to. A value between 0 and 1.
-     * @param {number} [blue=1] - The value to flash the blue channel to. A value between 0 and 1.
-     * @param {boolean} [force=false] - Force the flash effect to start immediately, even if already running.
-     * @param {function} [callback] - An optional callback to invoke when the flash completes. Will be sent one argument - a reference to this camera.
+     * @param {integer} [duration=250] - The duration of the effect in milliseconds.
+     * @param {integer} [red=255] - The amount to fade the red channel towards. A value between 0 and 255.
+     * @param {integer} [green=255] - The amount to fade the green channel towards. A value between 0 and 255.
+     * @param {integer} [blue=255] - The amount to fade the blue channel towards. A value between 0 and 255.
+     * @param {boolean} [force=false] - Force the effect to start immediately, even if already running.
+     * @param {function} [callback] - This callback will be invoked every frame for the duration of the effect.
+     * It is sent two arguments: A reference to the camera and a progress amount between 0 and 1 indicating how complete the effect is.
+     * @param {any} [context] - The context in which the callback is invoked. Defaults to the Scene to which the Camera belongs.
      *
      * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
      */
-    flash: function (duration, red, green, blue, force, callback)
+    flash: function (duration, red, green, blue, force, callback, context)
     {
-        if (!duration) { duration = Number.MIN_VALUE; }
-        if (red === undefined) { red = 1; }
-        if (green === undefined) { green = 1; }
-        if (blue === undefined) { blue = 1; }
-        if (force === undefined) { force = false; }
-        if (callback === undefined) { callback = null; }
-
-        if (!force && this._flashAlpha > 0)
-        {
-            return this;
-        }
-
-        this._flashRed = red;
-        this._flashGreen = green;
-        this._flashBlue = blue;
-        this._flashCallback = callback;
-        this._flashDuration = duration;
-        this._flashAlpha = 1;
-
-        return this;
+        return this.flashEffect.start(duration, red, green, blue, force, callback, context);
     },
 
     /**
      * Shakes the Camera by the given intensity over the duration specified.
      *
      * @method Phaser.Cameras.Scene2D.Camera#shake
+     * @fires Phaser.Cameras.Scene2D.Events#SHAKE_START
+     * @fires Phaser.Cameras.Scene2D.Events#SHAKE_COMPLETE
      * @since 3.0.0
      *
-     * @param {number} duration - The duration of the effect in milliseconds.
-     * @param {number} [intensity=0.05] - The intensity of the shake.
+     * @param {integer} [duration=100] - The duration of the effect in milliseconds.
+     * @param {(number|Phaser.Math.Vector2)} [intensity=0.05] - The intensity of the shake.
      * @param {boolean} [force=false] - Force the shake effect to start immediately, even if already running.
-     * @param {function} [callback] - An optional callback to invoke when the shake completes. Will be sent one argument - a reference to this camera.
+     * @param {function} [callback] - This callback will be invoked every frame for the duration of the effect.
+     * It is sent two arguments: A reference to the camera and a progress amount between 0 and 1 indicating how complete the effect is.
+     * @param {any} [context] - The context in which the callback is invoked. Defaults to the Scene to which the Camera belongs.
      *
      * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
      */
-    shake: function (duration, intensity, force, callback)
+    shake: function (duration, intensity, force, callback, context)
     {
-        if (!duration) { duration = Number.MIN_VALUE; }
-        if (intensity === undefined) { intensity = 0.05; }
-        if (force === undefined) { force = false; }
-        if (callback === undefined) { callback = null; }
-
-        if (!force && (this._shakeOffsetX !== 0 || this._shakeOffsetY !== 0))
-        {
-            return this;
-        }
-
-        this._shakeDuration = duration;
-        this._shakeIntensity = intensity;
-        this._shakeOffsetX = 0;
-        this._shakeOffsetY = 0;
-        this._shakeCallback = callback;
-
-        return this;
+        return this.shakeEffect.start(duration, intensity, force, callback, context);
     },
 
     /**
-     * [description]
+     * This effect will scroll the Camera so that the center of its viewport finishes at the given destination,
+     * over the duration and with the ease specified.
      *
-     * @method Phaser.Cameras.Scene2D.Camera#getWorldPoint
-     * @since 3.0.0
+     * @method Phaser.Cameras.Scene2D.Camera#pan
+     * @fires Phaser.Cameras.Scene2D.Events#PAN_START
+     * @fires Phaser.Cameras.Scene2D.Events#PAN_COMPLETE
+     * @since 3.11.0
      *
-     * @param {number} x - [description]
-     * @param {number} y - [description]
-     * @param {object|Phaser.Math.Vector2} output - [description]
-     *
-     * @return {Phaser.Math.Vector2} [description]
-     */
-    getWorldPoint: function (x, y, output)
-    {
-        if (output === undefined) { output = new Vector2(); }
-
-        var cameraMatrix = this.matrix.matrix;
-
-        var mva = cameraMatrix[0];
-        var mvb = cameraMatrix[1];
-        var mvc = cameraMatrix[2];
-        var mvd = cameraMatrix[3];
-        var mve = cameraMatrix[4];
-        var mvf = cameraMatrix[5];
-
-        /* First Invert Matrix */
-        var determinant = (mva * mvd) - (mvb * mvc);
-
-        if (!determinant)
-        {
-            output.x = x;
-            output.y = y;
-
-            return output;
-        }
-
-        determinant = 1 / determinant;
-
-        var ima = mvd * determinant;
-        var imb = -mvb * determinant;
-        var imc = -mvc * determinant;
-        var imd = mva * determinant;
-        var ime = (mvc * mvf - mvd * mve) * determinant;
-        var imf = (mvb * mve - mva * mvf) * determinant;
-
-        var c = Math.cos(this.rotation);
-        var s = Math.sin(this.rotation);
-
-        var zoom = this.zoom;
-
-        var scrollX = this.scrollX;
-        var scrollY = this.scrollY;
-
-        var sx = x + ((scrollX * c - scrollY * s) * zoom);
-        var sy = y + ((scrollX * s + scrollY * c) * zoom);
-
-        /* Apply transform to point */
-        output.x = (sx * ima + sy * imc + ime);
-        output.y = (sx * imb + sy * imd + imf);
-
-        return output;
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Cameras.Scene2D.Camera#ignore
-     * @since 3.0.0
-     *
-     * @param {Phaser.GameObjects.GameObject|Phaser.GameObjects.GameObject[]} gameObjectOrArray - [description]
+     * @param {number} x - The destination x coordinate to scroll the center of the Camera viewport to.
+     * @param {number} y - The destination y coordinate to scroll the center of the Camera viewport to.
+     * @param {integer} [duration=1000] - The duration of the effect in milliseconds.
+     * @param {(string|function)} [ease='Linear'] - The ease to use for the pan. Can be any of the Phaser Easing constants or a custom function.
+     * @param {boolean} [force=false] - Force the pan effect to start immediately, even if already running.
+     * @param {Phaser.Types.Cameras.Scene2D.CameraPanCallback} [callback] - This callback will be invoked every frame for the duration of the effect.
+     * It is sent four arguments: A reference to the camera, a progress amount between 0 and 1 indicating how complete the effect is,
+     * the current camera scroll x coordinate and the current camera scroll y coordinate.
+     * @param {any} [context] - The context in which the callback is invoked. Defaults to the Scene to which the Camera belongs.
      *
      * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
      */
-    ignore: function (gameObjectOrArray)
+    pan: function (x, y, duration, ease, force, callback, context)
     {
-        if (gameObjectOrArray instanceof Array)
-        {
-            for (var index = 0; index < gameObjectOrArray.length; ++index)
-            {
-                gameObjectOrArray[index].cameraFilter |= this._id;
-            }
-        }
-        else
-        {
-            gameObjectOrArray.cameraFilter |= this._id;
-        }
-
-        return this;
+        return this.panEffect.start(x, y, duration, ease, force, callback, context);
     },
 
     /**
-     * [description]
+     * This effect will zoom the Camera to the given scale, over the duration and with the ease specified.
+     *
+     * @method Phaser.Cameras.Scene2D.Camera#zoomTo
+     * @fires Phaser.Cameras.Scene2D.Events#ZOOM_START
+     * @fires Phaser.Cameras.Scene2D.Events#ZOOM_COMPLETE
+     * @since 3.11.0
+     *
+     * @param {number} zoom - The target Camera zoom value.
+     * @param {integer} [duration=1000] - The duration of the effect in milliseconds.
+     * @param {(string|function)} [ease='Linear'] - The ease to use for the pan. Can be any of the Phaser Easing constants or a custom function.
+     * @param {boolean} [force=false] - Force the pan effect to start immediately, even if already running.
+     * @param {Phaser.Types.Cameras.Scene2D.CameraPanCallback} [callback] - This callback will be invoked every frame for the duration of the effect.
+     * It is sent four arguments: A reference to the camera, a progress amount between 0 and 1 indicating how complete the effect is,
+     * the current camera scroll x coordinate and the current camera scroll y coordinate.
+     * @param {any} [context] - The context in which the callback is invoked. Defaults to the Scene to which the Camera belongs.
+     *
+     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
+     */
+    zoomTo: function (zoom, duration, ease, force, callback, context)
+    {
+        return this.zoomEffect.start(zoom, duration, ease, force, callback, context);
+    },
+
+    /**
+     * Internal preRender step.
      *
      * @method Phaser.Cameras.Scene2D.Camera#preRender
+     * @protected
      * @since 3.0.0
      *
-     * @param {number} baseScale - [description]
-     * @param {number} resolution - [description]
-     *
+     * @param {number} resolution - The game resolution, as set in the Scale Manager.
      */
-    preRender: function (baseScale, resolution)
+    preRender: function (resolution)
     {
         var width = this.width;
         var height = this.height;
-        var zoom = this.zoom * baseScale;
+
+        var halfWidth = width * 0.5;
+        var halfHeight = height * 0.5;
+
+        var zoom = this.zoom * resolution;
         var matrix = this.matrix;
-        var originX = width / 2;
-        var originY = height / 2;
+
+        var originX = width * this.originX;
+        var originY = height * this.originY;
+
         var follow = this._follow;
+        var deadzone = this.deadzone;
 
-        if (follow !== null)
+        var sx = this.scrollX;
+        var sy = this.scrollY;
+
+        if (deadzone)
         {
-            originX = follow.x;
-            originY = follow.y;
+            CenterOn(deadzone, this.midPoint.x, this.midPoint.y);
+        }
 
-            this.scrollX = (originX - width * 0.5) / zoom;
-            this.scrollY = (originY - height * 0.5) / zoom;
+        if (follow && !this.panEffect.isRunning)
+        {
+            var fx = (follow.x - this.followOffset.x);
+            var fy = (follow.y - this.followOffset.y);
+
+            if (deadzone)
+            {
+                if (fx < deadzone.x)
+                {
+                    sx = Linear(sx, sx - (deadzone.x - fx), this.lerp.x);
+                }
+                else if (fx > deadzone.right)
+                {
+                    sx = Linear(sx, sx + (fx - deadzone.right), this.lerp.x);
+                }
+
+                if (fy < deadzone.y)
+                {
+                    sy = Linear(sy, sy - (deadzone.y - fy), this.lerp.y);
+                }
+                else if (fy > deadzone.bottom)
+                {
+                    sy = Linear(sy, sy + (fy - deadzone.bottom), this.lerp.y);
+                }
+            }
+            else
+            {
+                sx = Linear(sx, fx - originX, this.lerp.x);
+                sy = Linear(sy, fy - originY, this.lerp.y);
+            }
         }
 
         if (this.useBounds)
         {
-            var bounds = this._bounds;
-
-            var bw = Math.max(0, bounds.right - width);
-            var bh = Math.max(0, bounds.bottom - height);
-
-            if (this.scrollX < bounds.x)
-            {
-                this.scrollX = bounds.x;
-            }
-            else if (this.scrollX > bw)
-            {
-                this.scrollX = bw;
-            }
-
-            if (this.scrollY < bounds.y)
-            {
-                this.scrollY = bounds.y;
-            }
-            else if (this.scrollY > bh)
-            {
-                this.scrollY = bh;
-            }
+            sx = this.clampX(sx);
+            sy = this.clampY(sy);
         }
 
         if (this.roundPixels)
         {
-            this.scrollX = Math.round(this.scrollX);
-            this.scrollY = Math.round(this.scrollY);
+            originX = Math.round(originX);
+            originY = Math.round(originY);
         }
 
-        matrix.loadIdentity();
-        matrix.scale(resolution, resolution);
-        matrix.translate(this.x + originX, this.y + originY);
-        matrix.rotate(this.rotation);
-        matrix.scale(zoom, zoom);
+        //  Values are in pixels and not impacted by zooming the Camera
+        this.scrollX = sx;
+        this.scrollY = sy;
+
+        var midX = sx + halfWidth;
+        var midY = sy + halfHeight;
+
+        //  The center of the camera, in world space, so taking zoom into account
+        //  Basically the pixel value of what it's looking at in the middle of the cam
+        this.midPoint.set(midX, midY);
+
+        var displayWidth = width / zoom;
+        var displayHeight = height / zoom;
+
+        this.worldView.setTo(
+            midX - (displayWidth / 2),
+            midY - (displayHeight / 2),
+            displayWidth,
+            displayHeight
+        );
+
+        matrix.applyITRS(this.x + originX, this.y + originY, this.rotation, zoom, zoom);
         matrix.translate(-originX, -originY);
-        matrix.translate(this._shakeOffsetX, this._shakeOffsetY);
+
+        this.shakeEffect.preRender();
     },
 
     /**
-     * [description]
+     * Sets the linear interpolation value to use when following a target.
      *
-     * @method Phaser.Cameras.Scene2D.Camera#removeBounds
-     * @since 3.0.0
+     * The default values of 1 means the camera will instantly snap to the target coordinates.
+     * A lower value, such as 0.1 means the camera will more slowly track the target, giving
+     * a smooth transition. You can set the horizontal and vertical values independently, and also
+     * adjust this value in real-time during your game.
      *
-     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
+     * Be sure to keep the value between 0 and 1. A value of zero will disable tracking on that axis.
+     *
+     * @method Phaser.Cameras.Scene2D.Camera#setLerp
+     * @since 3.9.0
+     *
+     * @param {number} [x=1] - The amount added to the horizontal linear interpolation of the follow target.
+     * @param {number} [y=1] - The amount added to the vertical linear interpolation of the follow target.
+     *
+     * @return {this} This Camera instance.
      */
-    removeBounds: function ()
+    setLerp: function (x, y)
     {
-        this.useBounds = false;
-
-        this._bounds.setEmpty();
-
-        return this;
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Cameras.Scene2D.Camera#setAngle
-     * @since 3.0.0
-     *
-     * @param {number} value - [description]
-     *
-     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
-     */
-    setAngle: function (value)
-    {
-        if (value === undefined) { value = 0; }
-
-        this.rotation = DegToRad(value);
-
-        return this;
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Cameras.Scene2D.Camera#setBackgroundColor
-     * @since 3.0.0
-     *
-     * @param {string|number|InputColorObject} color - [description]
-     *
-     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
-     */
-    setBackgroundColor: function (color)
-    {
-        if (color === undefined) { color = 'rgba(0,0,0,0)'; }
-
-        this.backgroundColor = ValueToColor(color);
-
-        this.transparent = (this.backgroundColor.alpha === 0);
-
-        return this;
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Cameras.Scene2D.Camera#setBounds
-     * @since 3.0.0
-     *
-     * @param {number} x - [description]
-     * @param {number} y - [description]
-     * @param {number} width - [description]
-     * @param {number} height - [description]
-     *
-     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
-     */
-    setBounds: function (x, y, width, height)
-    {
-        this._bounds.setTo(x, y, width, height);
-
-        this.useBounds = true;
-
-        return this;
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Cameras.Scene2D.Camera#setName
-     * @since 3.0.0
-     *
-     * @param {string} value - [description]
-     *
-     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
-     */
-    setName: function (value)
-    {
-        if (value === undefined) { value = ''; }
-
-        this.name = value;
-
-        return this;
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Cameras.Scene2D.Camera#setPosition
-     * @since 3.0.0
-     *
-     * @param {number} x - [description]
-     * @param {number} [y=x] - [description]
-     *
-     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
-     */
-    setPosition: function (x, y)
-    {
+        if (x === undefined) { x = 1; }
         if (y === undefined) { y = x; }
 
-        this.x = x;
-        this.y = y;
+        this.lerp.set(x, y);
 
         return this;
     },
 
     /**
-     * [description]
+     * Sets the horizontal and vertical offset of the camera from its follow target.
+     * The values are subtracted from the targets position during the Cameras update step.
      *
-     * @method Phaser.Cameras.Scene2D.Camera#setRotation
-     * @since 3.0.0
+     * @method Phaser.Cameras.Scene2D.Camera#setFollowOffset
+     * @since 3.9.0
      *
-     * @param {number} [value=0] - [description]
+     * @param {number} [x=0] - The horizontal offset from the camera follow target.x position.
+     * @param {number} [y=0] - The vertical offset from the camera follow target.y position.
      *
-     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
+     * @return {this} This Camera instance.
      */
-    setRotation: function (value)
+    setFollowOffset: function (x, y)
     {
-        if (value === undefined) { value = 0; }
+        if (x === undefined) { x = 0; }
+        if (y === undefined) { y = 0; }
 
-        this.rotation = value;
+        this.followOffset.set(x, y);
 
         return this;
     },
 
     /**
-     * [description]
+     * Sets the Camera to follow a Game Object.
      *
-     * @method Phaser.Cameras.Scene2D.Camera#setRoundPixels
-     * @since 3.0.0
+     * When enabled the Camera will automatically adjust its scroll position to keep the target Game Object
+     * in its center.
      *
-     * @param {boolean} value - [description]
+     * You can set the linear interpolation value used in the follow code.
+     * Use low lerp values (such as 0.1) to automatically smooth the camera motion.
      *
-     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
-     */
-    setRoundPixels: function (value)
-    {
-        this.roundPixels = value;
-
-        return this;
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Cameras.Scene2D.Camera#setScene
-     * @since 3.0.0
-     *
-     * @param {Phaser.Scene} scene - [description]
-     *
-     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
-     */
-    setScene: function (scene)
-    {
-        this.scene = scene;
-
-        return this;
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Cameras.Scene2D.Camera#setScroll
-     * @since 3.0.0
-     *
-     * @param {number} x - [description]
-     * @param {number} [y=x] - [description]
-     *
-     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
-     */
-    setScroll: function (x, y)
-    {
-        if (y === undefined) { y = x; }
-
-        this.scrollX = x;
-        this.scrollY = y;
-
-        return this;
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Cameras.Scene2D.Camera#setSize
-     * @since 3.0.0
-     *
-     * @param {number} width - [description]
-     * @param {number} [height=width] - [description]
-     *
-     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
-     */
-    setSize: function (width, height)
-    {
-        if (height === undefined) { height = width; }
-
-        this.width = width;
-        this.height = height;
-
-        return this;
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Cameras.Scene2D.Camera#setViewport
-     * @since 3.0.0
-     *
-     * @param {number} x - [description]
-     * @param {number} y - [description]
-     * @param {number} width - [description]
-     * @param {number} height - [description]
-     *
-     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
-     */
-    setViewport: function (x, y, width, height)
-    {
-        this.x = x;
-        this.y = y;
-        this.width = width;
-        this.height = height;
-
-        return this;
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Cameras.Scene2D.Camera#setZoom
-     * @since 3.0.0
-     *
-     * @param {float} [value=1] - [description]
-     *
-     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
-     */
-    setZoom: function (value)
-    {
-        if (value === undefined) { value = 1; }
-
-        this.zoom = value;
-
-        return this;
-    },
-
-    /**
-     * [description]
+     * If you find you're getting a slight "jitter" effect when following an object it's probably to do with sub-pixel
+     * rendering of the targets position. This can be rounded by setting the `roundPixels` argument to `true` to
+     * force full pixel rounding rendering. Note that this can still be broken if you have specified a non-integer zoom
+     * value on the camera. So be sure to keep the camera zoom to integers.
      *
      * @method Phaser.Cameras.Scene2D.Camera#startFollow
      * @since 3.0.0
      *
-     * @param {Phaser.GameObjects.GameObject|object} target - [description]
-     * @param {boolean} roundPx - [description]
+     * @param {(Phaser.GameObjects.GameObject|object)} target - The target for the Camera to follow.
+     * @param {boolean} [roundPixels=false] - Round the camera position to whole integers to avoid sub-pixel rendering?
+     * @param {number} [lerpX=1] - A value between 0 and 1. This value specifies the amount of linear interpolation to use when horizontally tracking the target. The closer the value to 1, the faster the camera will track.
+     * @param {number} [lerpY=1] - A value between 0 and 1. This value specifies the amount of linear interpolation to use when vertically tracking the target. The closer the value to 1, the faster the camera will track.
+     * @param {number} [offsetX=0] - The horizontal offset from the camera follow target.x position.
+     * @param {number} [offsetY=0] - The vertical offset from the camera follow target.y position.
      *
-     * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
+     * @return {this} This Camera instance.
      */
-    startFollow: function (target, roundPx)
+    startFollow: function (target, roundPixels, lerpX, lerpY, offsetX, offsetY)
     {
-        if (roundPx === undefined) { roundPx = false; }
+        if (roundPixels === undefined) { roundPixels = false; }
+        if (lerpX === undefined) { lerpX = 1; }
+        if (lerpY === undefined) { lerpY = lerpX; }
+        if (offsetX === undefined) { offsetX = 0; }
+        if (offsetY === undefined) { offsetY = offsetX; }
 
         this._follow = target;
 
-        this.roundPixels = roundPx;
+        this.roundPixels = roundPixels;
+
+        lerpX = Clamp(lerpX, 0, 1);
+        lerpY = Clamp(lerpY, 0, 1);
+
+        this.lerp.set(lerpX, lerpY);
+
+        this.followOffset.set(offsetX, offsetY);
+
+        var originX = this.width / 2;
+        var originY = this.height / 2;
+
+        var fx = target.x - offsetX;
+        var fy = target.y - offsetY;
+
+        this.midPoint.set(fx, fy);
+
+        this.scrollX = fx - originX;
+        this.scrollY = fy - originY;
+
+        if (this.useBounds)
+        {
+            this.scrollX = this.clampX(this.scrollX);
+            this.scrollY = this.clampY(this.scrollY);
+        }
 
         return this;
     },
 
     /**
-     * [description]
+     * Stops a Camera from following a Game Object, if previously set via `Camera.startFollow`.
      *
      * @method Phaser.Cameras.Scene2D.Camera#stopFollow
      * @since 3.0.0
@@ -1320,43 +919,6 @@ var Camera = new Class({
     },
 
     /**
-     * [description]
-     *
-     * @method Phaser.Cameras.Scene2D.Camera#toJSON
-     * @since 3.0.0
-     *
-     * @return {JSONCamera} [description]
-     */
-    toJSON: function ()
-    {
-        var output = {
-            name: this.name,
-            x: this.x,
-            y: this.y,
-            width: this.width,
-            height: this.height,
-            zoom: this.zoom,
-            rotation: this.rotation,
-            roundPixels: this.roundPixels,
-            scrollX: this.scrollX,
-            scrollY: this.scrollY,
-            backgroundColor: this.backgroundColor.rgba
-        };
-
-        if (this.useBounds)
-        {
-            output['bounds'] = {
-                x: this._bounds.x,
-                y: this._bounds.y,
-                width: this._bounds.width,
-                height: this._bounds.height
-            };
-        }
-
-        return output;
-    },
-
-    /**
      * Resets any active FX, such as a fade, flash or shake. Useful to call after a fade in order to
      * remove the fade.
      *
@@ -1367,19 +929,19 @@ var Camera = new Class({
      */
     resetFX: function ()
     {
-        this._flashAlpha = 0;
-        this._fadeAlpha = 0;
-        this._shakeOffsetX = 0;
-        this._shakeOffsetY = 0;
-        this._shakeDuration = 0;
+        this.panEffect.reset();
+        this.shakeEffect.reset();
+        this.flashEffect.reset();
+        this.fadeEffect.reset();
 
         return this;
     },
 
     /**
-     * [description]
+     * Internal method called automatically by the Camera Manager.
      *
      * @method Phaser.Cameras.Scene2D.Camera#update
+     * @protected
      * @since 3.0.0
      *
      * @param {integer} time - The current timestamp as generated by the Request Animation Frame or SetTimeout.
@@ -1387,93 +949,37 @@ var Camera = new Class({
      */
     update: function (time, delta)
     {
-        if (this._flashAlpha > 0)
+        if (this.visible)
         {
-            this._flashAlpha -= delta / this._flashDuration;
-
-            if (this._flashAlpha <= 0)
-            {
-                this._flashAlpha = 0;
-
-                if (this._flashCallback)
-                {
-                    //  Do this in case the callback flashes again (otherwise we'd overwrite the new callback)
-                    var flashCallback = this._flashCallback;
-
-                    this._flashCallback = null;
-
-                    flashCallback(this);
-                }
-            }
-        }
-
-        if (this._fadeAlpha > 0 && this._fadeAlpha < 1)
-        {
-            this._fadeAlpha += delta / this._fadeDuration;
-
-            if (this._fadeAlpha >= 1)
-            {
-                this._fadeAlpha = 1;
-
-                if (this._fadeCallback)
-                {
-                    //  Do this in case the callback fades again (otherwise we'd overwrite the new callback)
-                    var fadeCallback = this._fadeCallback;
-
-                    this._fadeCallback = null;
-
-                    fadeCallback(this);
-                }
-            }
-        }
-
-        if (this._shakeDuration > 0)
-        {
-            var intensity = this._shakeIntensity;
-
-            this._shakeDuration -= delta;
-
-            if (this._shakeDuration <= 0)
-            {
-                this._shakeOffsetX = 0;
-                this._shakeOffsetY = 0;
-
-                if (this._shakeCallback)
-                {
-                    //  Do this in case the callback shakes again (otherwise we'd overwrite the new callback)
-                    var shakeCallback = this._shakeCallback;
-
-                    this._shakeCallback = null;
-
-                    shakeCallback(this);
-                }
-            }
-            else
-            {
-                this._shakeOffsetX = (Math.random() * intensity * this.width * 2 - intensity * this.width) * this.zoom;
-                this._shakeOffsetY = (Math.random() * intensity * this.height * 2 - intensity * this.height) * this.zoom;
-
-                if (this.roundPixels)
-                {
-                    this._shakeOffsetX |= 0;
-                    this._shakeOffsetY |= 0;
-                }
-            }
+            this.panEffect.update(time, delta);
+            this.zoomEffect.update(time, delta);
+            this.shakeEffect.update(time, delta);
+            this.flashEffect.update(time, delta);
+            this.fadeEffect.update(time, delta);
         }
     },
 
     /**
-     * [description]
+     * Destroys this Camera instance. You rarely need to call this directly.
+     *
+     * Called by the Camera Manager. If you wish to destroy a Camera please use `CameraManager.remove` as
+     * cameras are stored in a pool, ready for recycling later, and calling this directly will prevent that.
      *
      * @method Phaser.Cameras.Scene2D.Camera#destroy
+     * @fires Phaser.Cameras.Scene2D.Events#DESTROY
      * @since 3.0.0
      */
     destroy: function ()
     {
-        this._bounds = undefined;
-        this.matrix = undefined;
-        this.culledObjects = [];
-        this.scene = undefined;
+        this.clearRenderToTexture();
+
+        this.resetFX();
+
+        BaseCamera.prototype.destroy.call(this);
+
+        this._follow = null;
+
+        this.deadzone = null;
     }
 
 });

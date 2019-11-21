@@ -1,14 +1,14 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 /**
  * Provides methods used for visually flipping a Game Object.
  * Should be applied as a mixin and not used directly.
  * 
- * @name Phaser.GameObjects.Components.Flip
+ * @namespace Phaser.GameObjects.Components.Flip
  * @since 3.0.0
  */
 
@@ -16,8 +16,10 @@ var Flip = {
 
     /**
      * The horizontally flipped state of the Game Object.
+     * 
      * A Game Object that is flipped horizontally will render inversed on the horizontal axis.
      * Flipping always takes place from the middle of the texture and does not impact the scale value.
+     * If this Game Object has a physics body, it will not change the body. This is a rendering toggle only.
      * 
      * @name Phaser.GameObjects.Components.Flip#flipX
      * @type {boolean}
@@ -28,8 +30,10 @@ var Flip = {
 
     /**
      * The vertically flipped state of the Game Object.
+     * 
      * A Game Object that is flipped vertically will render inversed on the vertical axis (i.e. upside down)
      * Flipping always takes place from the middle of the texture and does not impact the scale value.
+     * If this Game Object has a physics body, it will not change the body. This is a rendering toggle only.
      * 
      * @name Phaser.GameObjects.Components.Flip#flipY
      * @type {boolean}
@@ -41,10 +45,14 @@ var Flip = {
     /**
      * Toggles the horizontal flipped state of this Game Object.
      * 
+     * A Game Object that is flipped horizontally will render inversed on the horizontal axis.
+     * Flipping always takes place from the middle of the texture and does not impact the scale value.
+     * If this Game Object has a physics body, it will not change the body. This is a rendering toggle only.
+     * 
      * @method Phaser.GameObjects.Components.Flip#toggleFlipX
      * @since 3.0.0
      * 
-     * @return {Phaser.GameObjects.GameObject} This Game Object instance.
+     * @return {this} This Game Object instance.
      */
     toggleFlipX: function ()
     {
@@ -59,7 +67,7 @@ var Flip = {
      * @method Phaser.GameObjects.Components.Flip#toggleFlipY
      * @since 3.0.0
      * 
-     * @return {Phaser.GameObjects.GameObject} This Game Object instance.
+     * @return {this} This Game Object instance.
      */
     toggleFlipY: function ()
     {
@@ -71,12 +79,16 @@ var Flip = {
     /**
      * Sets the horizontal flipped state of this Game Object.
      * 
+     * A Game Object that is flipped horizontally will render inversed on the horizontal axis.
+     * Flipping always takes place from the middle of the texture and does not impact the scale value.
+     * If this Game Object has a physics body, it will not change the body. This is a rendering toggle only.
+     * 
      * @method Phaser.GameObjects.Components.Flip#setFlipX
      * @since 3.0.0
      *
      * @param {boolean} value - The flipped state. `false` for no flip, or `true` to be flipped.
      * 
-     * @return {Phaser.GameObjects.GameObject} This Game Object instance.
+     * @return {this} This Game Object instance.
      */
     setFlipX: function (value)
     {
@@ -93,7 +105,7 @@ var Flip = {
      *
      * @param {boolean} value - The flipped state. `false` for no flip, or `true` to be flipped.
      * 
-     * @return {Phaser.GameObjects.GameObject} This Game Object instance.
+     * @return {this} This Game Object instance.
      */
     setFlipY: function (value)
     {
@@ -105,13 +117,17 @@ var Flip = {
     /**
      * Sets the horizontal and vertical flipped state of this Game Object.
      * 
+     * A Game Object that is flipped will render inversed on the flipped axis.
+     * Flipping always takes place from the middle of the texture and does not impact the scale value.
+     * If this Game Object has a physics body, it will not change the body. This is a rendering toggle only.
+     * 
      * @method Phaser.GameObjects.Components.Flip#setFlip
      * @since 3.0.0
      *
      * @param {boolean} x - The horizontal flipped state. `false` for no flip, or `true` to be flipped.
      * @param {boolean} y - The horizontal flipped state. `false` for no flip, or `true` to be flipped.
      * 
-     * @return {Phaser.GameObjects.GameObject} This Game Object instance.
+     * @return {this} This Game Object instance.
      */
     setFlip: function (x, y)
     {
@@ -127,7 +143,7 @@ var Flip = {
      * @method Phaser.GameObjects.Components.Flip#resetFlip
      * @since 3.0.0
      *
-     * @return {Phaser.GameObjects.GameObject} This Game Object instance.
+     * @return {this} This Game Object instance.
      */
     resetFlip: function ()
     {

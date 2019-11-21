@@ -1,21 +1,31 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @author       Pavle Goloskokovic <pgoloskokovic@gmail.com> (http://prunegames.com)
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var BaseSoundManager = require('../BaseSoundManager');
 var Class = require('../../utils/Class');
+var Events = require('../events');
 var HTML5AudioSound = require('./HTML5AudioSound');
 
 /**
- * HTML5 Audio implementation of the sound manager.
+ * HTML5 Audio implementation of the Sound Manager.
+ * 
+ * Note: To play multiple instances of the same HTML5 Audio sound, you need to provide an `instances` value when
+ * loading the sound with the Loader:
+ * 
+ * ```javascript
+ * this.load.audio('explosion', 'explosion.mp3', {
+ *     instances: 2
+ * });
+ * ```
  *
  * @class HTML5AudioSoundManager
  * @extends Phaser.Sound.BaseSoundManager
- * @memberOf Phaser.Sound
+ * @memberof Phaser.Sound
  * @constructor
- * @author Pavle Goloskokovic <pgoloskokovic@gmail.com> (http://prunegames.com)
  * @since 3.0.0
  *
  * @param {Phaser.Game} game - Reference to the current game instance.
@@ -132,7 +142,7 @@ var HTML5AudioSoundManager = new Class({
      * @since 3.0.0
      *
      * @param {string} key - Asset key for the sound.
-     * @param {SoundConfig} [config] - An optional config object containing default sound settings.
+     * @param {Phaser.Types.Sound.SoundConfig} [config] - An optional config object containing default sound settings.
      *
      * @return {Phaser.Sound.HTML5AudioSound} The new sound instance.
      */
@@ -150,12 +160,33 @@ var HTML5AudioSoundManager = new Class({
      * devices on the initial explicit user interaction.
      *
      * @method Phaser.Sound.HTML5AudioSoundManager#unlock
-     * @private
      * @since 3.0.0
      */
     unlock: function ()
     {
+        this.locked = false;
+
         var _this = this;
+
+        this.game.cache.audio.entries.each(function (key, tags)
+        {
+            for (var i = 0; i < tags.length; i++)
+            {
+                if (tags[i].dataset.locked === 'true')
+                {
+                    _this.locked = true;
+
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
+        if (!this.locked)
+        {
+            return;
+        }
 
         var moved = false;
 
@@ -166,11 +197,6 @@ var HTML5AudioSoundManager = new Class({
 
         var unlock = function ()
         {
-            if (!_this.game.cache.audio.entries.size)
-            {
-                return;
-            }
-
             if (moved)
             {
                 moved = false;
@@ -180,41 +206,64 @@ var HTML5AudioSoundManager = new Class({
             document.body.removeEventListener('touchmove', detectMove);
             document.body.removeEventListener('touchend', unlock);
 
-            var allTags = [];
+            var lockedTags = [];
 
             _this.game.cache.audio.entries.each(function (key, tags)
             {
                 for (var i = 0; i < tags.length; i++)
                 {
-                    allTags.push(tags[i]);
+                    var tag = tags[i];
+
+                    if (tag.dataset.locked === 'true')
+                    {
+                        lockedTags.push(tag);
+                    }
                 }
+
                 return true;
             });
 
-            var lastTag = allTags[allTags.length - 1];
+            if (lockedTags.length === 0)
+            {
+                return;
+            }
+
+            var lastTag = lockedTags[lockedTags.length - 1];
 
             lastTag.oncanplaythrough = function ()
             {
                 lastTag.oncanplaythrough = null;
+
+                lockedTags.forEach(function (tag)
+                {
+                    tag.dataset.locked = 'false';
+                });
+
                 _this.unlocked = true;
             };
 
-            allTags.forEach(function (tag)
+            lockedTags.forEach(function (tag)
             {
                 tag.load();
             });
         };
 
-        this.once('unlocked', function ()
+        this.once(Events.UNLOCKED, function ()
         {
             this.forEachActiveSound(function (sound)
             {
-                sound.duration = sound.tags[0].duration;
+                if (sound.currentMarker === null && sound.duration === 0)
+                {
+                    sound.duration = sound.tags[0].duration;
+                }
+
                 sound.totalDuration = sound.tags[0].duration;
             });
 
-            this.lockedActionsQueue.forEach(function (lockedAction)
+            while (this.lockedActionsQueue.length)
             {
+                var lockedAction = this.lockedActionsQueue.shift();
+
                 if (lockedAction.sound[lockedAction.prop].apply)
                 {
                     lockedAction.sound[lockedAction.prop].apply(lockedAction.sound, lockedAction.value || []);
@@ -223,10 +272,8 @@ var HTML5AudioSoundManager = new Class({
                 {
                     lockedAction.sound[lockedAction.prop] = lockedAction.value;
                 }
-            });
+            }
 
-            this.lockedActionsQueue.length = 0;
-            this.lockedActionsQueue = null;
         }, this);
 
         document.body.addEventListener('touchmove', detectMove, false);
@@ -303,7 +350,7 @@ var HTML5AudioSoundManager = new Class({
      */
     isLocked: function (sound, prop, value)
     {
-        if (this.locked)
+        if (sound.tags[0].dataset.locked === 'true')
         {
             this.lockedActionsQueue.push({
                 sound: sound,
@@ -318,15 +365,27 @@ var HTML5AudioSoundManager = new Class({
     },
 
     /**
-     * @event Phaser.Sound.HTML5AudioSoundManager#MuteEvent
-     * @param {Phaser.Sound.HTML5AudioSoundManager} soundManager - Reference to the sound manager that emitted event.
-     * @param {boolean} value - An updated value of Phaser.Sound.HTML5AudioSoundManager#mute property.
+     * Sets the muted state of all this Sound Manager.
+     *
+     * @method Phaser.Sound.HTML5AudioSoundManager#setMute
+     * @fires Phaser.Sound.Events#GLOBAL_MUTE
+     * @since 3.3.0
+     *
+     * @param {boolean} value - `true` to mute all sounds, `false` to unmute them.
+     *
+     * @return {Phaser.Sound.HTML5AudioSoundManager} This Sound Manager.
      */
+    setMute: function (value)
+    {
+        this.mute = value;
+
+        return this;
+    },
 
     /**
      * @name Phaser.Sound.HTML5AudioSoundManager#mute
      * @type {boolean}
-     * @fires Phaser.Sound.HTML5AudioSoundManager#MuteEvent
+     * @fires Phaser.Sound.Events#GLOBAL_MUTE
      * @since 3.0.0
      */
     mute: {
@@ -342,24 +401,36 @@ var HTML5AudioSoundManager = new Class({
 
             this.forEachActiveSound(function (sound)
             {
-                sound.setMute();
+                sound.updateMute();
             });
 
-            this.emit('mute', this, value);
+            this.emit(Events.GLOBAL_MUTE, this, value);
         }
 
     },
 
     /**
-     * @event Phaser.Sound.HTML5AudioSoundManager#VolumeEvent
-     * @param {Phaser.Sound.HTML5AudioSoundManager} soundManager - Reference to the sound manager that emitted event.
-     * @param {number} value - An updated value of Phaser.Sound.HTML5AudioSoundManager#volume property.
+     * Sets the volume of this Sound Manager.
+     *
+     * @method Phaser.Sound.HTML5AudioSoundManager#setVolume
+     * @fires Phaser.Sound.Events#GLOBAL_VOLUME
+     * @since 3.3.0
+     *
+     * @param {number} value - The global volume of this Sound Manager.
+     *
+     * @return {Phaser.Sound.HTML5AudioSoundManager} This Sound Manager.
      */
+    setVolume: function (value)
+    {
+        this.volume = value;
+
+        return this;
+    },
 
     /**
      * @name Phaser.Sound.HTML5AudioSoundManager#volume
      * @type {number}
-     * @fires Phaser.Sound.HTML5AudioSoundManager#VolumeEvent
+     * @fires Phaser.Sound.Events#GLOBAL_VOLUME
      * @since 3.0.0
      */
     volume: {
@@ -375,10 +446,10 @@ var HTML5AudioSoundManager = new Class({
 
             this.forEachActiveSound(function (sound)
             {
-                sound.setVolume();
+                sound.updateVolume();
             });
 
-            this.emit('volume', this, value);
+            this.emit(Events.GLOBAL_VOLUME, this, value);
         }
 
     }

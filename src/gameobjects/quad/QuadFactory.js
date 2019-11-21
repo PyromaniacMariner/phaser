@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Quad = require('./Quad');
@@ -19,11 +19,11 @@ var GameObjectFactory = require('../GameObjectFactory');
  * @param {number} x - The horizontal position of this Game Object in the world.
  * @param {number} y - The vertical position of this Game Object in the world.
  * @param {string} texture - The key of the Texture this Game Object will use to render with, as stored in the Texture Manager.
- * @param {string|integer} [frame] - An optional frame from the Texture this Game Object is rendering with.
+ * @param {(string|integer)} [frame] - An optional frame from the Texture this Game Object is rendering with.
  * 
  * @return {Phaser.GameObjects.Quad} The Game Object that was created.
  */
-if (WEBGL_RENDERER)
+if (typeof WEBGL_RENDERER)
 {
     GameObjectFactory.register('quad', function (x, y, key, frame)
     {

@@ -4,13 +4,14 @@ git:
   depth: 1
 
 language: node_js
+
 node_js:
-  - 'node'
+  - '9'
 
 env:
   - TERM=dumb
 
 script:
-  - yarn install
-  - yarn run lint
-  - yarn run build
+  - npm install
+  - npm run lint
+  - npm run build

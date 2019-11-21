@@ -1,13 +1,14 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../../utils/Class');
 var Contains = require('./Contains');
 var GetPoint = require('./GetPoint');
 var GetPoints = require('./GetPoints');
+var GEOM_CONST = require('../const');
 var Random = require('./Random');
 
 /**
@@ -19,7 +20,7 @@ var Random = require('./Random');
  * To render an Ellipse you should look at the capabilities of the Graphics class.
  *
  * @class Ellipse
- * @memberOf Phaser.Geom
+ * @memberof Phaser.Geom
  * @constructor
  * @since 3.0.0
  *
@@ -38,6 +39,17 @@ var Ellipse = new Class({
         if (y === undefined) { y = 0; }
         if (width === undefined) { width = 0; }
         if (height === undefined) { height = 0; }
+
+        /**
+         * The geometry constant type of this object: `GEOM_CONST.ELLIPSE`.
+         * Used for fast type comparisons.
+         *
+         * @name Phaser.Geom.Ellipse#type
+         * @type {integer}
+         * @readonly
+         * @since 3.19.0
+         */
+        this.type = GEOM_CONST.ELLIPSE;
 
         /**
          * The x position of the center of the ellipse.
@@ -104,10 +116,12 @@ var Ellipse = new Class({
      * @method Phaser.Geom.Ellipse#getPoint
      * @since 3.0.0
      *
-     * @param {float} position - A value between 0 and 1, where 0 equals 0 degrees, 0.5 equals 180 degrees and 1 equals 360 around the ellipse.
-     * @param {Phaser.Geom.Point|object} [out] - An object to store the return values in. If not given a Point object will be created.
+     * @generic {Phaser.Geom.Point} O - [out,$return]
      *
-     * @return {Phaser.Geom.Point|object} A Point, or point-like object, containing the coordinates of the point around the ellipse.
+     * @param {number} position - A value between 0 and 1, where 0 equals 0 degrees, 0.5 equals 180 degrees and 1 equals 360 around the ellipse.
+     * @param {(Phaser.Geom.Point|object)} [out] - An object to store the return values in. If not given a Point object will be created.
+     *
+     * @return {(Phaser.Geom.Point|object)} A Point, or point-like object, containing the coordinates of the point around the ellipse.
      */
     getPoint: function (position, point)
     {
@@ -138,9 +152,11 @@ var Ellipse = new Class({
      * @method Phaser.Geom.Ellipse#getRandomPoint
      * @since 3.0.0
      *
-     * @param {Phaser.Geom.Point|object} [point] - A Point or point-like object to set the random `x` and `y` values in.
+     * @generic {Phaser.Geom.Point} O - [point,$return]
      *
-     * @return {Phaser.Geom.Point|object} A Point object with the random values set in the `x` and `y` properties.
+     * @param {(Phaser.Geom.Point|object)} [point] - A Point or point-like object to set the random `x` and `y` values in.
+     *
+     * @return {(Phaser.Geom.Point|object)} A Point object with the random values set in the `x` and `y` properties.
      */
     getRandomPoint: function (point)
     {
@@ -271,7 +287,7 @@ var Ellipse = new Class({
 
     /**
      * The left position of the Ellipse.
-     * 
+     *
      * @name Phaser.Geom.Ellipse#left
      * @type {number}
      * @since 3.0.0
@@ -292,7 +308,7 @@ var Ellipse = new Class({
 
     /**
      * The right position of the Ellipse.
-     * 
+     *
      * @name Phaser.Geom.Ellipse#right
      * @type {number}
      * @since 3.0.0
@@ -313,7 +329,7 @@ var Ellipse = new Class({
 
     /**
      * The top position of the Ellipse.
-     * 
+     *
      * @name Phaser.Geom.Ellipse#top
      * @type {number}
      * @since 3.0.0
@@ -334,7 +350,7 @@ var Ellipse = new Class({
 
     /**
      * The bottom position of the Ellipse.
-     * 
+     *
      * @name Phaser.Geom.Ellipse#bottom
      * @type {number}
      * @since 3.0.0

@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 //  bitmask flag for GameObject.renderMask
@@ -11,12 +11,21 @@ var _FLAG = 1; // 0001
  * Provides methods used for setting the visibility of a Game Object.
  * Should be applied as a mixin and not used directly.
  * 
- * @name Phaser.GameObjects.Components.Visible
+ * @namespace Phaser.GameObjects.Components.Visible
  * @since 3.0.0
  */
 
 var Visible = {
 
+    /**
+     * Private internal value. Holds the visible value.
+     * 
+     * @name Phaser.GameObjects.Components.Visible#_visible
+     * @type {boolean}
+     * @private
+     * @default true
+     * @since 3.0.0
+     */
     _visible: true,
 
     /**
@@ -61,7 +70,7 @@ var Visible = {
      *
      * @param {boolean} value - The visible state of the Game Object.
      * 
-     * @return {Phaser.GameObjects.GameObject} This Game Object instance.
+     * @return {this} This Game Object instance.
      */
     setVisible: function (value)
     {

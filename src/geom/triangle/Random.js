@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Point = require('../point/Point');
@@ -11,6 +11,8 @@ var Point = require('../point/Point');
  *
  * @function Phaser.Geom.Triangle.Random
  * @since 3.0.0
+ *
+ * @generic {Phaser.Geom.Point} O - [out,$return]
  *
  * @param {Phaser.Geom.Triangle} triangle - [description]
  * @param {Phaser.Geom.Point} [out] - [description]

@@ -1,12 +1,11 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var BlendModes = require('../renderer/BlendModes');
 var GetAdvancedValue = require('../utils/object/GetAdvancedValue');
-var ScaleModes = require('../renderer/ScaleModes');
 
 /**
  * Builds a Game Object using the provided configuration object.
@@ -14,9 +13,9 @@ var ScaleModes = require('../renderer/ScaleModes');
  * @function Phaser.GameObjects.BuildGameObject
  * @since 3.0.0
  *
- * @param {Phaser.Scene} scene - [description]
- * @param {Phaser.GameObjects.GameObject} gameObject - [description]
- * @param {object} config - [description]
+ * @param {Phaser.Scene} scene - A reference to the Scene.
+ * @param {Phaser.GameObjects.GameObject} gameObject - The initial GameObject.
+ * @param {Phaser.Types.GameObjects.GameObjectConfig} config - The config to build the GameObject with.
  *
  * @return {Phaser.GameObjects.GameObject} The built Game Object.
  */
@@ -94,10 +93,6 @@ var BuildGameObject = function (scene, gameObject, config)
 
         gameObject.setOrigin(ox, oy);
     }
-
-    //  ScaleMode
-
-    gameObject.scaleMode = GetAdvancedValue(config, 'scaleMode', ScaleModes.DEFAULT);
 
     //  BlendMode
 

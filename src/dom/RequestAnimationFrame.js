@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../utils/Class');
@@ -13,7 +13,7 @@ var NOOP = require('../utils/NOOP');
  * This is invoked automatically by the Phaser.Game instance.
  *
  * @class RequestAnimationFrame
- * @memberOf Phaser.DOM
+ * @memberof Phaser.DOM
  * @constructor
  * @since 3.0.0
  */
@@ -82,6 +82,17 @@ var RequestAnimationFrame = new Class({
          */
         this.lastTime = 0;
 
+        /**
+         * The target FPS rate in ms.
+         * Only used when setTimeout is used instead of RAF.
+         *
+         * @name Phaser.DOM.RequestAnimationFrame#target
+         * @type {number}
+         * @default 0
+         * @since 3.21.0
+         */
+        this.target = 0;
+
         var _this = this;
 
         /**
@@ -92,9 +103,12 @@ var RequestAnimationFrame = new Class({
          * @type {FrameRequestCallback}
          * @since 3.0.0
          */
-        this.step = function step (timestamp)
+        this.step = function step ()
         {
-            // DOMHighResTimeStamp
+            //  Because we cannot trust the time passed to this callback from the browser and need it kept in sync with event times
+            var timestamp = window.performance.now();
+
+            //  DOMHighResTimeStamp
             _this.lastTime = _this.tick;
 
             _this.tick = timestamp;
@@ -116,7 +130,7 @@ var RequestAnimationFrame = new Class({
         {
             var d = Date.now();
 
-            var delay = Math.max(16 + _this.lastTime - d, 0);
+            var delay = Math.min(Math.max(_this.target * 2 + _this.tick - d, 0), _this.target);
 
             _this.lastTime = _this.tick;
 
@@ -136,8 +150,9 @@ var RequestAnimationFrame = new Class({
      *
      * @param {FrameRequestCallback} callback - The callback to invoke each step.
      * @param {boolean} forceSetTimeOut - Should it use SetTimeout, even if RAF is available?
+     * @param {number} targetFPS - The target fps rate (in ms). Only used when setTimeout is used.
      */
-    start: function (callback, forceSetTimeOut)
+    start: function (callback, forceSetTimeOut, targetFPS)
     {
         if (this.isRunning)
         {
@@ -147,6 +162,8 @@ var RequestAnimationFrame = new Class({
         this.callback = callback;
 
         this.isSetTimeOut = forceSetTimeOut;
+
+        this.target = targetFPS;
 
         this.isRunning = true;
 

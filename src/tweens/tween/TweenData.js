@@ -1,40 +1,52 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 /**
- * [description]
+ * Returns a TweenDataConfig object that describes the tween data for a unique property of a unique target.
+ * A single Tween consists of multiple TweenDatas, depending on how many properties are being changed by the Tween.
+ *
+ * This is an internal function used by the TweenBuilder and should not be accessed directly, instead,
+ * Tweens should be created using the GameObjectFactory or GameObjectCreator.
  *
  * @function Phaser.Tweens.TweenData
  * @since 3.0.0
  *
- * @param {object} target - [description]
- * @param {string} key - [description]
- * @param {function} getEnd - [description]
- * @param {function} getStart - [description]
- * @param {function} ease - [description]
- * @param {number} delay - [description]
- * @param {number} duration - [description]
- * @param {boolean} yoyo - [description]
- * @param {number} hold - [description]
- * @param {number} repeat - [description]
- * @param {number} repeatDelay - [description]
- * @param {boolean} flipX - [description]
- * @param {boolean} flipY - [description]
+ * @param {any} target - The target to tween.
+ * @param {integer} index - The target index within the Tween targets array.
+ * @param {string} key - The property of the target to tween.
+ * @param {function} getEnd - What the property will be at the END of the Tween.
+ * @param {function} getStart - What the property will be at the START of the Tween.
+ * @param {?function} getActive - If not null, is invoked _immediately_ as soon as the TweenData is running, and is set on the target property.
+ * @param {function} ease - The ease function this tween uses.
+ * @param {number} delay - Time in ms/frames before tween will start.
+ * @param {number} duration - Duration of the tween in ms/frames.
+ * @param {boolean} yoyo - Determines whether the tween should return back to its start value after hold has expired.
+ * @param {number} hold - Time in ms/frames the tween will pause before repeating or returning to its starting value if yoyo is set to true.
+ * @param {number} repeat - Number of times to repeat the tween. The tween will always run once regardless, so a repeat value of '1' will play the tween twice.
+ * @param {number} repeatDelay - Time in ms/frames before the repeat will start.
+ * @param {boolean} flipX - Should toggleFlipX be called when yoyo or repeat happens?
+ * @param {boolean} flipY - Should toggleFlipY be called when yoyo or repeat happens?
  *
- * @return {Phaser.Tweens.TweenData} [description]
+ * @return {Phaser.Types.Tweens.TweenDataConfig} The config object describing this TweenData.
  */
-var TweenData = function (target, key, getEnd, getStart, ease, delay, duration, yoyo, hold, repeat, repeatDelay, flipX, flipY)
+var TweenData = function (target, index, key, getEnd, getStart, getActive, ease, delay, duration, yoyo, hold, repeat, repeatDelay, flipX, flipY)
 {
     return {
 
         //  The target to tween
         target: target,
 
+        //  The index of the target within the tween targets array
+        index: index,
+
         //  The property of the target to tween
         key: key,
+
+        //  What to set the property to the moment the TweenData is invoked.
+        getActiveValue: getActive,
 
         //  The returned value sets what the property will be at the END of the Tween.
         getEndValue: getEnd,

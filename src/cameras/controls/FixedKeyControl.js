@@ -1,42 +1,37 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../../utils/Class');
 var GetValue = require('../../utils/object/GetValue');
 
-//  var camControl = new CameraControl({
-//      camera: this.cameras.main,
-//      left: cursors.left,
-//      right: cursors.right,
-//      speed: float OR { x: 0, y: 0 }
-//  })
-
-/**
- * @typedef {object} FixedKeyControlConfig
- *
- * @property {Phaser.Cameras.Scene2D.Camera} [camera] - The Camera that this Control will update.
- * @property {Phaser.Input.Keyboard.Key} [left] - The Key to be pressed that will move the Camera left.
- * @property {Phaser.Input.Keyboard.Key} [right] - The Key to be pressed that will move the Camera right.
- * @property {Phaser.Input.Keyboard.Key} [up] - The Key to be pressed that will move the Camera up.
- * @property {Phaser.Input.Keyboard.Key} [zoomIn] - The Key to be pressed that will zoom the Camera in.
- * @property {Phaser.Input.Keyboard.Key} [zoomOut] - The Key to be pressed that will zoom the Camera out.
- * @property {float} [zoomSpeed=0.01] - The speed at which the camera will zoom if the `zoomIn` or `zoomOut` keys are pressed.
- * @property {float|{x:float,y:float}} [speed=0] - The horizontal and vertical speed the camera will move.
- */
-
 /**
  * @classdesc
- * [description]
+ * A Fixed Key Camera Control.
+ *
+ * This allows you to control the movement and zoom of a camera using the defined keys.
+ *
+ * ```javascript
+ * var camControl = new FixedKeyControl({
+ *     camera: this.cameras.main,
+ *     left: cursors.left,
+ *     right: cursors.right,
+ *     speed: float OR { x: 0, y: 0 }
+ * });
+ * ```
+ *
+ * Movement is precise and has no 'smoothing' applied to it.
+ *
+ * You must call the `update` method of this controller every frame.
  *
  * @class FixedKeyControl
- * @memberOf Phaser.Cameras.Controls
+ * @memberof Phaser.Cameras.Controls
  * @constructor
  * @since 3.0.0
  *
- * @param {FixedKeyControlConfig} config - [description]
+ * @param {Phaser.Types.Cameras.Controls.FixedKeyControlConfig} config - The Fixed Key Control configuration object.
  */
 var FixedKeyControl = new Class({
 
@@ -48,7 +43,7 @@ var FixedKeyControl = new Class({
          * The Camera that this Control will update.
          *
          * @name Phaser.Cameras.Controls.FixedKeyControl#camera
-         * @type {Phaser.Cameras.Scene2D.Camera}
+         * @type {?Phaser.Cameras.Scene2D.Camera}
          * @default null
          * @since 3.0.0
          */
@@ -58,7 +53,7 @@ var FixedKeyControl = new Class({
          * The Key to be pressed that will move the Camera left.
          *
          * @name Phaser.Cameras.Controls.FixedKeyControl#left
-         * @type {Phaser.Input.Keyboard.Key}
+         * @type {?Phaser.Input.Keyboard.Key}
          * @default null
          * @since 3.0.0
          */
@@ -68,7 +63,7 @@ var FixedKeyControl = new Class({
          * The Key to be pressed that will move the Camera right.
          *
          * @name Phaser.Cameras.Controls.FixedKeyControl#right
-         * @type {Phaser.Input.Keyboard.Key}
+         * @type {?Phaser.Input.Keyboard.Key}
          * @default null
          * @since 3.0.0
          */
@@ -78,7 +73,7 @@ var FixedKeyControl = new Class({
          * The Key to be pressed that will move the Camera up.
          *
          * @name Phaser.Cameras.Controls.FixedKeyControl#up
-         * @type {Phaser.Input.Keyboard.Key}
+         * @type {?Phaser.Input.Keyboard.Key}
          * @default null
          * @since 3.0.0
          */
@@ -88,7 +83,7 @@ var FixedKeyControl = new Class({
          * The Key to be pressed that will move the Camera down.
          *
          * @name Phaser.Cameras.Controls.FixedKeyControl#down
-         * @type {Phaser.Input.Keyboard.Key}
+         * @type {?Phaser.Input.Keyboard.Key}
          * @default null
          * @since 3.0.0
          */
@@ -98,7 +93,7 @@ var FixedKeyControl = new Class({
          * The Key to be pressed that will zoom the Camera in.
          *
          * @name Phaser.Cameras.Controls.FixedKeyControl#zoomIn
-         * @type {Phaser.Input.Keyboard.Key}
+         * @type {?Phaser.Input.Keyboard.Key}
          * @default null
          * @since 3.0.0
          */
@@ -108,7 +103,7 @@ var FixedKeyControl = new Class({
          * The Key to be pressed that will zoom the Camera out.
          *
          * @name Phaser.Cameras.Controls.FixedKeyControl#zoomOut
-         * @type {Phaser.Input.Keyboard.Key}
+         * @type {?Phaser.Input.Keyboard.Key}
          * @default null
          * @since 3.0.0
          */
@@ -118,7 +113,7 @@ var FixedKeyControl = new Class({
          * The speed at which the camera will zoom if the `zoomIn` or `zoomOut` keys are pressed.
          *
          * @name Phaser.Cameras.Controls.FixedKeyControl#zoomSpeed
-         * @type {float}
+         * @type {number}
          * @default 0.01
          * @since 3.0.0
          */
@@ -128,7 +123,7 @@ var FixedKeyControl = new Class({
          * The horizontal speed the camera will move.
          *
          * @name Phaser.Cameras.Controls.FixedKeyControl#speedX
-         * @type {float}
+         * @type {number}
          * @default 0
          * @since 3.0.0
          */
@@ -138,7 +133,7 @@ var FixedKeyControl = new Class({
          * The vertical speed the camera will move.
          *
          * @name Phaser.Cameras.Controls.FixedKeyControl#speedY
-         * @type {float}
+         * @type {number}
          * @default 0
          * @since 3.0.0
          */
@@ -158,7 +153,7 @@ var FixedKeyControl = new Class({
         }
 
         /**
-         * [description]
+         * Internal property to track the current zoom level.
          *
          * @name Phaser.Cameras.Controls.FixedKeyControl#_zoom
          * @type {number}
@@ -226,12 +221,14 @@ var FixedKeyControl = new Class({
     },
 
     /**
-     * [description]
+     * Applies the results of pressing the control keys to the Camera.
+     *
+     * You must call this every step, it is not called automatically.
      *
      * @method Phaser.Cameras.Controls.FixedKeyControl#update
      * @since 3.0.0
      *
-     * @param {number} delta - [description]
+     * @param {number} delta - The delta time in ms since the last frame. This is a smoothed and capped value based on the FPS rate.
      */
     update: function (delta)
     {

@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../../utils/Class');
@@ -14,7 +14,7 @@ var GetFastValue = require('../../utils/object/GetFastValue');
  * to this data and use it to look up and perform operations on tiles.
  *
  * @class LayerData
- * @memberOf Phaser.Tilemaps
+ * @memberof Phaser.Tilemaps
  * @constructor
  * @since 3.0.0
  *
@@ -29,8 +29,8 @@ var LayerData = new Class({
         if (config === undefined) { config = {}; }
 
         /**
-         * [description]
-         * 
+         * The name of the layer, if specified in Tiled.
+         *
          * @name Phaser.Tilemaps.LayerData#name
          * @type {string}
          * @since 3.0.0
@@ -38,8 +38,8 @@ var LayerData = new Class({
         this.name = GetFastValue(config, 'name', 'layer');
 
         /**
-         * [description]
-         * 
+         * The x offset of where to draw from the top left
+         *
          * @name Phaser.Tilemaps.LayerData#x
          * @type {number}
          * @since 3.0.0
@@ -47,8 +47,8 @@ var LayerData = new Class({
         this.x = GetFastValue(config, 'x', 0);
 
         /**
-         * [description]
-         * 
+         * The y offset of where to draw from the top left
+         *
          * @name Phaser.Tilemaps.LayerData#y
          * @type {number}
          * @since 3.0.0
@@ -56,8 +56,8 @@ var LayerData = new Class({
         this.y = GetFastValue(config, 'y', 0);
 
         /**
-         * [description]
-         * 
+         * The width in tile of the layer.
+         *
          * @name Phaser.Tilemaps.LayerData#width
          * @type {number}
          * @since 3.0.0
@@ -65,8 +65,8 @@ var LayerData = new Class({
         this.width = GetFastValue(config, 'width', 0);
 
         /**
-         * [description]
-         * 
+         * The height in tiles of the layer.
+         *
          * @name Phaser.Tilemaps.LayerData#height
          * @type {number}
          * @since 3.0.0
@@ -74,8 +74,8 @@ var LayerData = new Class({
         this.height = GetFastValue(config, 'height', 0);
 
         /**
-         * [description]
-         * 
+         * The pixel width of the tiles.
+         *
          * @name Phaser.Tilemaps.LayerData#tileWidth
          * @type {number}
          * @since 3.0.0
@@ -83,8 +83,8 @@ var LayerData = new Class({
         this.tileWidth = GetFastValue(config, 'tileWidth', 0);
 
         /**
-         * [description]
-         * 
+         * The pixel height of the tiles.
+         *
          * @name Phaser.Tilemaps.LayerData#tileHeight
          * @type {number}
          * @since 3.0.0
@@ -93,7 +93,7 @@ var LayerData = new Class({
 
         /**
          * [description]
-         * 
+         *
          * @name Phaser.Tilemaps.LayerData#baseTileWidth
          * @type {number}
          * @since 3.0.0
@@ -102,7 +102,7 @@ var LayerData = new Class({
 
         /**
          * [description]
-         * 
+         *
          * @name Phaser.Tilemaps.LayerData#baseTileHeight
          * @type {number}
          * @since 3.0.0
@@ -110,8 +110,8 @@ var LayerData = new Class({
         this.baseTileHeight = GetFastValue(config, 'baseTileHeight', this.tileHeight);
 
         /**
-         * [description]
-         * 
+         * The width in pixels of the entire layer.
+         *
          * @name Phaser.Tilemaps.LayerData#widthInPixels
          * @type {number}
          * @since 3.0.0
@@ -119,8 +119,8 @@ var LayerData = new Class({
         this.widthInPixels = GetFastValue(config, 'widthInPixels', this.width * this.baseTileWidth);
 
         /**
-         * [description]
-         * 
+         * The height in pixels of the entire layer.
+         *
          * @name Phaser.Tilemaps.LayerData#heightInPixels
          * @type {number}
          * @since 3.0.0
@@ -129,16 +129,16 @@ var LayerData = new Class({
 
         /**
          * [description]
-         * 
+         *
          * @name Phaser.Tilemaps.LayerData#alpha
-         * @type {float}
+         * @type {number}
          * @since 3.0.0
          */
         this.alpha = GetFastValue(config, 'alpha', 1);
 
         /**
          * [description]
-         * 
+         *
          * @name Phaser.Tilemaps.LayerData#visible
          * @type {boolean}
          * @since 3.0.0
@@ -146,8 +146,8 @@ var LayerData = new Class({
         this.visible = GetFastValue(config, 'visible', true);
 
         /**
-         * [description]
-         * 
+         * Layer specific properties (can be specified in Tiled)
+         *
          * @name Phaser.Tilemaps.LayerData#properties
          * @type {object}
          * @since 3.0.0
@@ -156,7 +156,7 @@ var LayerData = new Class({
 
         /**
          * [description]
-         * 
+         *
          * @name Phaser.Tilemaps.LayerData#indexes
          * @type {array}
          * @since 3.0.0
@@ -165,7 +165,7 @@ var LayerData = new Class({
 
         /**
          * [description]
-         * 
+         *
          * @name Phaser.Tilemaps.LayerData#collideIndexes
          * @type {array}
          * @since 3.0.0
@@ -174,7 +174,7 @@ var LayerData = new Class({
 
         /**
          * [description]
-         * 
+         *
          * @name Phaser.Tilemaps.LayerData#callbacks
          * @type {array}
          * @since 3.0.0
@@ -183,7 +183,7 @@ var LayerData = new Class({
 
         /**
          * [description]
-         * 
+         *
          * @name Phaser.Tilemaps.LayerData#bodies
          * @type {array}
          * @since 3.0.0
@@ -191,19 +191,19 @@ var LayerData = new Class({
         this.bodies = GetFastValue(config, 'bodies', []);
 
         /**
-         * [description]
-         * 
+         * An array of the tile indexes
+         *
          * @name Phaser.Tilemaps.LayerData#data
-         * @type {array}
+         * @type {(number[])}
          * @since 3.0.0
          */
         this.data = GetFastValue(config, 'data', []);
 
         /**
          * [description]
-         * 
+         *
          * @name Phaser.Tilemaps.LayerData#tilemapLayer
-         * @type {Phaser.Tilemaps.DynamicTilemapLayer|Phaser.Tilemaps.StaticTilemapLayer}
+         * @type {(Phaser.Tilemaps.DynamicTilemapLayer|Phaser.Tilemaps.StaticTilemapLayer)}
          * @since 3.0.0
          */
         this.tilemapLayer = GetFastValue(config, 'tilemapLayer', null);

@@ -1,13 +1,20 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 /**
+ * Read an integer value from an XML Node.
+ *
  * @function getValue
  * @since 3.0.0
  * @private
+ *
+ * @param {Node} node - The XML Node.
+ * @param {string} attribute - The attribute to read.
+ *
+ * @return {integer} The parsed value.
  */
 function getValue (node, attribute)
 {
@@ -15,14 +22,18 @@ function getValue (node, attribute)
 }
 
 /**
+ * Parse an XML font to Bitmap Font data for the Bitmap Font cache.
+ *
  * @function ParseXMLBitmapFont
  * @since 3.0.0
  * @private
  *
- * @param {XMLDocument} xml - [description]
- * @param {integer} [xSpacing=0] - [description]
- * @param {integer} [ySpacing=0] - [description]
- * @param {Phaser.Textures.Frame} [frame] - [description]
+ * @param {XMLDocument} xml - The XML Document to parse the font from.
+ * @param {integer} [xSpacing=0] - The x-axis spacing to add between each letter.
+ * @param {integer} [ySpacing=0] - The y-axis spacing to add to the line height.
+ * @param {Phaser.Textures.Frame} [frame] - The texture frame to take into account while parsing.
+ *
+ * @return {Phaser.Types.GameObjects.BitmapText.BitmapFontData} The parsed Bitmap Font data.
  */
 var ParseXMLBitmapFont = function (xml, xSpacing, ySpacing, frame)
 {
@@ -91,8 +102,6 @@ var ParseXMLBitmapFont = function (xml, xSpacing, ySpacing, frame)
 
     if (adjustForTrim && top !== 0 && left !== 0)
     {
-        // console.log('top and left', top, left, frame.x, frame.y);
-
         //  Now we know the top and left coordinates of the glyphs in the original data
         //  so we can work out how much to adjust the glyphs by
 

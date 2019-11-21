@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 //  This singleton is instantiated as soon as Phaser loads,
@@ -11,6 +11,20 @@
 
 /**
  * @namespace Phaser.Device
+ * @since 3.0.0
+ */
+
+/**
+ * @typedef {object} Phaser.DeviceConf
+ *
+ * @property {Phaser.Device.OS} os - The OS Device functions.
+ * @property {Phaser.Device.Browser} browser - The Browser Device functions.
+ * @property {Phaser.Device.Features} features - The Features Device functions.
+ * @property {Phaser.Device.Input} input - The Input Device functions.
+ * @property {Phaser.Device.Audio} audio - The Audio Device functions.
+ * @property {Phaser.Device.Video} video - The Video Device functions.
+ * @property {Phaser.Device.Fullscreen} fullscreen - The Fullscreen Device functions.
+ * @property {Phaser.Device.CanvasFeatures} canvasFeatures - The Canvas Device functions.
  */
 
 module.exports = {

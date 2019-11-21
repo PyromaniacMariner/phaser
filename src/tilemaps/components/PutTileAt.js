@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Tile = require('../Tile');
@@ -16,14 +16,15 @@ var SetTileCollision = require('./SetTileCollision');
  * Collision information will be recalculated at the specified location.
  *
  * @function Phaser.Tilemaps.Components.PutTileAt
+ * @private
  * @since 3.0.0
  *
- * @param {integer|Phaser.Tilemaps.Tile} tile - The index of this tile to set or a Tile object.
- * @param {integer} tileX - [description]
- * @param {integer} tileY - [description]
- * @param {boolean} [recalculateFaces=true] - [description]
+ * @param {(integer|Phaser.Tilemaps.Tile)} tile - The index of this tile to set or a Tile object.
+ * @param {integer} tileX - The x coordinate, in tiles, not pixels.
+ * @param {integer} tileY - The y coordinate, in tiles, not pixels.
+ * @param {boolean} [recalculateFaces=true] - `true` if the faces data should be recalculated.
  * @param {Phaser.Tilemaps.LayerData} layer - The Tilemap Layer to act upon.
- * 
+ *
  * @return {Phaser.Tilemaps.Tile} The Tile object that was created or added to this map.
  */
 var PutTileAt = function (tile, tileX, tileY, recalculateFaces, layer)

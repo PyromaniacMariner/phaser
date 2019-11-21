@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var GetTileAt = require('./GetTileAt');
@@ -12,6 +12,7 @@ var GetTileAt = require('./GetTileAt');
  * internally to optimize recalculating faces when only one tile has been changed.
  *
  * @function Phaser.Tilemaps.Components.CalculateFacesAt
+ * @private
  * @since 3.0.0
  * 
  * @param {integer} tileX - The x coordinate.

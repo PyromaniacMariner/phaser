@@ -1,17 +1,19 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Bodies = require('../lib/factory/Bodies');
 var Body = require('../lib/body/Body');
 var GetFastValue = require('../../../utils/object/GetFastValue');
+var PhysicsEditorParser = require('../PhysicsEditorParser');
+var Vertices = require('../lib/geometry/Vertices');
 
 /**
  * [description]
  *
- * @name Phaser.Physics.Matter.Components.SetBody
+ * @namespace Phaser.Physics.Matter.Components.SetBody
  * @since 3.0.0
  */
 var SetBody = {
@@ -19,13 +21,13 @@ var SetBody = {
     //  Calling any of these methods resets previous properties you may have set on the body, including plugins, mass, etc
 
     /**
-     * [description]
+     * Set the body on a Game Object to a rectangle.
      *
      * @method Phaser.Physics.Matter.Components.SetBody#setRectangle
      * @since 3.0.0
      *
-     * @param {number} width - [description]
-     * @param {number} height - [description]
+     * @param {number} width - Width of the rectangle.
+     * @param {number} height - Height of the rectangle.
      * @param {object} options - [description]
      *
      * @return {Phaser.GameObjects.GameObject} This Game Object.
@@ -52,14 +54,14 @@ var SetBody = {
     },
 
     /**
-     * [description]
+     * Set the body on the Game Object to a polygon shape.
      *
      * @method Phaser.Physics.Matter.Components.SetBody#setPolygon
      * @since 3.0.0
      *
-     * @param {number} radius - [description]
-     * @param {number} sides - [description]
-     * @param {object} options - [description]
+     * @param {number} radius - The radius of the polygon.
+     * @param {number} sides - The amount of sides creating the polygon.
+     * @param {object} options - A matterjs config object.
      *
      * @return {Phaser.GameObjects.GameObject} This Game Object.
      */
@@ -69,15 +71,15 @@ var SetBody = {
     },
 
     /**
-     * [description]
+     * Creates a new matterjs trapezoid body.
      *
      * @method Phaser.Physics.Matter.Components.SetBody#setTrapezoid
      * @since 3.0.0
      *
-     * @param {number} width - [description]
-     * @param {number} height - [description]
-     * @param {number} slope - [description]
-     * @param {object} options - [description]
+     * @param {number} width - The width of the trapezoid.
+     * @param {number} height - The height of the trapezoid.
+     * @param {number} slope - The angle of slope for the trapezoid.
+     * @param {object} options - A matterjs config object for the body.
      *
      * @return {Phaser.GameObjects.GameObject} This Game Object.
      */
@@ -92,7 +94,7 @@ var SetBody = {
      * @method Phaser.Physics.Matter.Components.SetBody#setExistingBody
      * @since 3.0.0
      *
-     * @param {Phaser.Physics.Matter.Body} body - [description]
+     * @param {MatterJS.Body} body - [description]
      * @param {boolean} [addToWorld=true] - [description]
      *
      * @return {Phaser.GameObjects.GameObject} This Game Object.
@@ -110,11 +112,15 @@ var SetBody = {
         }
 
         this.body = body;
-        this.body.gameObject = this;
+
+        for (var i = 0; i < body.parts.length; i++)
+        {
+            body.parts[i].gameObject = this;
+        }
 
         var _this = this;
 
-        this.body.destroy = function ()
+        body.destroy = function destroy ()
         {
             _this.world.remove(_this.body);
             _this.body.gameObject = null;
@@ -122,7 +128,12 @@ var SetBody = {
 
         if (addToWorld)
         {
-            this.world.add(this.body);
+            this.world.add(body);
+        }
+
+        if (this._originComponent)
+        {
+            this.setOrigin(body.render.sprite.xOffset, body.render.sprite.yOffset);
         }
 
         return this;
@@ -180,30 +191,50 @@ var SetBody = {
 
             case 'polygon':
                 var sides = GetFastValue(config, 'sides', 5);
-                var pradius = GetFastValue(config, 'radius', Math.max(bodyWidth, bodyHeight) / 2);
-                body = Bodies.polygon(bodyX, bodyY, sides, pradius, options);
+                var pRadius = GetFastValue(config, 'radius', Math.max(bodyWidth, bodyHeight) / 2);
+                body = Bodies.polygon(bodyX, bodyY, sides, pRadius, options);
                 break;
 
             case 'fromVertices':
             case 'fromVerts':
-                var verts = GetFastValue(config, 'verts', []);
 
-                if (this.body)
+                var verts = GetFastValue(config, 'verts', null);
+
+                if (verts)
                 {
-                    Body.setVertices(this.body, verts);
-                    body = this.body;
+                    //  Has the verts array come from Vertices.fromPath, or is it raw?
+                    if (typeof verts === 'string')
+                    {
+                        verts = Vertices.fromPath(verts);
+                    }
+
+                    if (this.body && !this.body.hasOwnProperty('temp'))
+                    {
+                        Body.setVertices(this.body, verts);
+
+                        body = this.body;
+                    }
+                    else
+                    {
+                        var flagInternal = GetFastValue(config, 'flagInternal', false);
+                        var removeCollinear = GetFastValue(config, 'removeCollinear', 0.01);
+                        var minimumArea = GetFastValue(config, 'minimumArea', 10);
+    
+                        body = Bodies.fromVertices(bodyX, bodyY, verts, options, flagInternal, removeCollinear, minimumArea);
+                    }
                 }
-                else
-                {
-                    var flagInternal = GetFastValue(config, 'flagInternal', false);
-                    var removeCollinear = GetFastValue(config, 'removeCollinear', 0.01);
-                    var minimumArea = GetFastValue(config, 'minimumArea', 10);
-                    body = Bodies.fromVertices(bodyX, bodyY, verts, options, flagInternal, removeCollinear, minimumArea);
-                }
+
+                break;
+
+            case 'fromPhysicsEditor':
+                body = PhysicsEditorParser.parseBody(bodyX, bodyY, bodyWidth, bodyHeight, config);
                 break;
         }
 
-        this.setExistingBody(body, config.addToWorld);
+        if (body)
+        {
+            this.setExistingBody(body, config.addToWorld);
+        }
 
         return this;
     }

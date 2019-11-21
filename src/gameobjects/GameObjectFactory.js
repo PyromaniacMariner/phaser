@@ -1,11 +1,12 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../utils/Class');
-var PluginManager = require('../boot/PluginManager');
+var PluginCache = require('../plugins/PluginCache');
+var SceneEvents = require('../scene/events');
 
 /**
  * @classdesc
@@ -16,7 +17,7 @@ var PluginManager = require('../boot/PluginManager');
  * methods into the class.
  *
  * @class GameObjectFactory
- * @memberOf Phaser.GameObjects
+ * @memberof Phaser.GameObjects
  * @constructor
  * @since 3.0.0
  *
@@ -48,11 +49,6 @@ var GameObjectFactory = new Class({
          */
         this.systems = scene.sys;
 
-        if (!scene.sys.settings.isBooted)
-        {
-            scene.sys.events.once('boot', this.boot, this);
-        }
-
         /**
          * A reference to the Scene Display List.
          *
@@ -72,24 +68,39 @@ var GameObjectFactory = new Class({
          * @since 3.0.0
          */
         this.updateList;
+
+        scene.sys.events.once(SceneEvents.BOOT, this.boot, this);
+        scene.sys.events.on(SceneEvents.START, this.start, this);
     },
 
     /**
-     * Boots the plugin.
+     * This method is called automatically, only once, when the Scene is first created.
+     * Do not invoke it directly.
      *
      * @method Phaser.GameObjects.GameObjectFactory#boot
      * @private
-     * @since 3.0.0
+     * @since 3.5.1
      */
     boot: function ()
     {
         this.displayList = this.systems.displayList;
         this.updateList = this.systems.updateList;
 
-        var eventEmitter = this.systems.events;
+        this.systems.events.once(SceneEvents.DESTROY, this.destroy, this);
+    },
 
-        eventEmitter.on('shutdown', this.shutdown, this);
-        eventEmitter.on('destroy', this.destroy, this);
+    /**
+     * This method is called automatically by the Scene when it is starting up.
+     * It is responsible for creating local systems, properties and listening for Scene events.
+     * Do not invoke it directly.
+     *
+     * @method Phaser.GameObjects.GameObjectFactory#start
+     * @private
+     * @since 3.5.0
+     */
+    start: function ()
+    {
+        this.systems.events.once(SceneEvents.SHUTDOWN, this.shutdown, this);
     },
 
     /**
@@ -121,24 +132,35 @@ var GameObjectFactory = new Class({
     },
 
     /**
-     * Shuts this plugin down.
+     * The Scene that owns this plugin is shutting down.
+     * We need to kill and reset all internal properties as well as stop listening to Scene events.
      *
      * @method Phaser.GameObjects.GameObjectFactory#shutdown
+     * @private
      * @since 3.0.0
      */
     shutdown: function ()
     {
+        this.systems.events.off(SceneEvents.SHUTDOWN, this.shutdown, this);
     },
 
     /**
-     * Destroys this plugin.
+     * The Scene that owns this plugin is being destroyed.
+     * We need to shutdown and then kill off all external references.
      *
      * @method Phaser.GameObjects.GameObjectFactory#destroy
+     * @private
      * @since 3.0.0
      */
     destroy: function ()
     {
+        this.shutdown();
+
+        this.scene.sys.events.off(SceneEvents.START, this.start, this);
+
         this.scene = null;
+        this.systems = null;
+
         this.displayList = null;
         this.updateList = null;
     }
@@ -155,6 +177,14 @@ GameObjectFactory.register = function (factoryType, factoryFunction)
     }
 };
 
-PluginManager.register('GameObjectFactory', GameObjectFactory, 'add');
+GameObjectFactory.remove = function (factoryType)
+{
+    if (GameObjectFactory.prototype.hasOwnProperty(factoryType))
+    {
+        delete GameObjectFactory.prototype[factoryType];
+    }
+};
+
+PluginCache.register('GameObjectFactory', GameObjectFactory, 'add');
 
 module.exports = GameObjectFactory;

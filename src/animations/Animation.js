@@ -1,64 +1,16 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
+var Clamp = require('../math/Clamp');
 var Class = require('../utils/Class');
+var EventEmitter = require('eventemitter3');
+var Events = require('./events');
+var FindClosestInSorted = require('../utils/array/FindClosestInSorted');
 var Frame = require('./AnimationFrame');
 var GetValue = require('../utils/object/GetValue');
-
-/**
- * @typedef {object} JSONAnimation
- *
- * @property {string} key - [description]
- * @property {string} type - A frame based animation (as opposed to a bone based animation)
- * @property {JSONAnimationFrame[]} frames - [description]
- * @property {integer} frameRate - The frame rate of playback in frames per second (default 24 if duration is null)
- * @property {integer} duration - How long the animation should play for.
- * @property {boolean} skipMissedFrames - Skip frames if the time lags, or always advanced anyway?
- * @property {integer} delay - Delay before starting playback (in seconds)
- * @property {integer} repeat - Number of times to repeat the animation (-1 for infinity)
- * @property {integer} repeatDelay - Delay before the repeat starts (in seconds)
- * @property {boolean} yoyo - Should the animation yoyo? (reverse back down to the start) before repeating?
- * @property {boolean} showOnStart - Should sprite.visible = true when the animation starts to play?
- * @property {boolean} hideOnComplete - Should sprite.visible = false when the animation finishes?
- */
-
-/**
- * @typedef {object} AnimationFrameConfig
- *
- * @property {string} key - [description]
- * @property {string|number} frame - [description]
- * @property {float} [duration=0] - [description]
- * @property {boolean} [visible] - [description]
- * @property {function} [onUpdate] - [description]
- */
-
-/**
- * @typedef {object} AnimationConfig // TODO 19/03/2018 fix type
- *
- * @property {AnimationFrameConfig[]} [frames] - [description]
- * @property {string} [defaultTextureKey=null] - [description]
- * @property {integer} [frameRate] - The frame rate of playback in frames per second (default 24 if duration is null)
- * @property {integer} [duration] - How long the animation should play for.
- * @property {boolean} [skipMissedFrames=true] - Skip frames if the time lags, or always advanced anyway?
- * @property {integer} [delay=0] - Delay before starting playback (in seconds)
- * @property {integer} [repeat=0] - Number of times to repeat the animation (-1 for infinity)
- * @property {integer} [repeatDelay=0] - Delay before the repeat starts (in seconds)
- * @property {boolean} [yoyo=false] - Should the animation yoyo? (reverse back down to the start) before repeating?
- * @property {boolean} [showOnStart=false] - Should sprite.visible = true when the animation starts to play?
- * @property {boolean} [hideOnComplete=false] - Should sprite.visible = false when the animation finishes?
- * @property {object} [callbackScope] - [description]
- * @property {boolean} [onStart=false] - [description]
- * @property {array} [onStartParams] - [description]
- * @property {boolean} [onRepeat=false] - [description]
- * @property {array} [onRepeatParams] - [description]
- * @property {boolean} [onUpdate=false] - [description]
- * @property {array} [onUpdateParams] - [description]
- * @property {boolean} [onComplete=false] - [description]
- * @property {array} [onCompleteParams] - [description]
- */
 
 /**
  * @classdesc
@@ -71,22 +23,27 @@ var GetValue = require('../utils/object/GetValue');
  * So multiple Game Objects can have playheads all pointing to this one Animation instance.
  *
  * @class Animation
- * @memberOf Phaser.Animations
+ * @memberof Phaser.Animations
+ * @extends Phaser.Events.EventEmitter
  * @constructor
  * @since 3.0.0
  *
- * @param {Phaser.Animations.AnimationManager} manager - [description]
- * @param {string} key - [description]
- * @param {AnimationConfig} config - [description]
+ * @param {Phaser.Animations.AnimationManager} manager - A reference to the global Animation Manager
+ * @param {string} key - The unique identifying string for this animation.
+ * @param {Phaser.Types.Animations.Animation} config - The Animation configuration.
  */
 var Animation = new Class({
+
+    Extends: EventEmitter,
 
     initialize:
 
     function Animation (manager, key, config)
     {
+        EventEmitter.call(this);
+
         /**
-         * [description]
+         * A reference to the global Animation Manager.
          *
          * @name Phaser.Animations.Animation#manager
          * @type {Phaser.Animations.AnimationManager}
@@ -95,7 +52,7 @@ var Animation = new Class({
         this.manager = manager;
 
         /**
-         * [description]
+         * The unique identifying string for this animation.
          *
          * @name Phaser.Animations.Animation#key
          * @type {string}
@@ -114,7 +71,7 @@ var Animation = new Class({
         this.type = 'frame';
 
         /**
-         * Extract all the frame data into the frames array
+         * Extract all the frame data into the frames array.
          *
          * @name Phaser.Animations.Animation#frames
          * @type {Phaser.Animations.AnimationFrame[]}
@@ -137,8 +94,9 @@ var Animation = new Class({
         this.frameRate = GetValue(config, 'frameRate', null);
 
         /**
-         * How long the animation should play for.
-         * If frameRate is set it overrides this value otherwise frameRate is derived from duration.
+         * How long the animation should play for, in milliseconds.
+         * If the `frameRate` property has been set then it overrides this value,
+         * otherwise the `frameRate` is derived from `duration`.
          *
          * @name Phaser.Animations.Animation#duration
          * @type {integer}
@@ -150,25 +108,25 @@ var Animation = new Class({
         {
             //  No duration or frameRate given, use default frameRate of 24fps
             this.frameRate = 24;
-            this.duration = this.frameRate / this.frames.length;
+            this.duration = (this.frameRate / this.frames.length) * 1000;
         }
         else if (this.duration && this.frameRate === null)
         {
             //  Duration given but no frameRate, so set the frameRate based on duration
-            //  I.e. 12 frames in the animation, duration = 4 (4000 ms)
-            //  So frameRate is 12 / 4 = 3 fps
-            this.frameRate = this.frames.length / this.duration;
+            //  I.e. 12 frames in the animation, duration = 4000 ms
+            //  So frameRate is 12 / (4000 / 1000) = 3 fps
+            this.frameRate = this.frames.length / (this.duration / 1000);
         }
         else
         {
             //  frameRate given, derive duration from it (even if duration also specified)
             //  I.e. 15 frames in the animation, frameRate = 30 fps
-            //  So duration is 15 / 30 = 0.5 (half a second)
-            this.duration = this.frames.length / this.frameRate;
+            //  So duration is 15 / 30 = 0.5 * 1000 (half a second, or 500ms)
+            this.duration = (this.frames.length / this.frameRate) * 1000;
         }
 
         /**
-         * ms per frame (without including frame specific modifiers)
+         * How many ms per frame, not including frame specific modifiers.
          *
          * @name Phaser.Animations.Animation#msPerFrame
          * @type {integer}
@@ -187,7 +145,7 @@ var Animation = new Class({
         this.skipMissedFrames = GetValue(config, 'skipMissedFrames', true);
 
         /**
-         * Delay before starting playback (in seconds)
+         * The delay in ms before the playback will begin.
          *
          * @name Phaser.Animations.Animation#delay
          * @type {integer}
@@ -197,7 +155,7 @@ var Animation = new Class({
         this.delay = GetValue(config, 'delay', 0);
 
         /**
-         * Number of times to repeat the animation (-1 for infinity)
+         * Number of times to repeat the animation. Set to -1 to repeat forever.
          *
          * @name Phaser.Animations.Animation#repeat
          * @type {integer}
@@ -207,7 +165,7 @@ var Animation = new Class({
         this.repeat = GetValue(config, 'repeat', 0);
 
         /**
-         * Delay before the repeat starts (in seconds)
+         * The delay in ms before the a repeat play starts.
          *
          * @name Phaser.Animations.Animation#repeatDelay
          * @type {integer}
@@ -217,7 +175,7 @@ var Animation = new Class({
         this.repeatDelay = GetValue(config, 'repeatDelay', 0);
 
         /**
-         * Should the animation yoyo? (reverse back down to the start) before repeating?
+         * Should the animation yoyo (reverse back down to the start) before repeating?
          *
          * @name Phaser.Animations.Animation#yoyo
          * @type {boolean}
@@ -227,7 +185,7 @@ var Animation = new Class({
         this.yoyo = GetValue(config, 'yoyo', false);
 
         /**
-         * Should sprite.visible = true when the animation starts to play?
+         * Should the GameObject's `visible` property be set to `true` when the animation starts to play?
          *
          * @name Phaser.Animations.Animation#showOnStart
          * @type {boolean}
@@ -237,7 +195,7 @@ var Animation = new Class({
         this.showOnStart = GetValue(config, 'showOnStart', false);
 
         /**
-         * Should sprite.visible = false when the animation finishes?
+         * Should the GameObject's `visible` property be set to `false` when the animation finishes?
          *
          * @name Phaser.Animations.Animation#hideOnComplete
          * @type {boolean}
@@ -247,89 +205,7 @@ var Animation = new Class({
         this.hideOnComplete = GetValue(config, 'hideOnComplete', false);
 
         /**
-         * [description]
-         *
-         * @name Phaser.Animations.Animation#callbackScope
-         * @type {object}
-         * @since 3.0.0
-         */
-        this.callbackScope = GetValue(config, 'callbackScope', this);
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Animations.Animation#onStart
-         * @type {function}
-         * @since 3.0.0
-         */
-        this.onStart = GetValue(config, 'onStart', false);
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Animations.Animation#onStartParams
-         * @type {array}
-         * @since 3.0.0
-         */
-        this.onStartParams = GetValue(config, 'onStartParams', []);
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Animations.Animation#onRepeat
-         * @type {function}
-         * @since 3.0.0
-         */
-        this.onRepeat = GetValue(config, 'onRepeat', false);
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Animations.Animation#onRepeatParams
-         * @type {array}
-         * @since 3.0.0
-         */
-        this.onRepeatParams = GetValue(config, 'onRepeatParams', []);
-
-        /**
-         * Called for EVERY frame of the animation.
-         * See AnimationFrame.onUpdate for a frame specific callback.
-         *
-         * @name Phaser.Animations.Animation#onUpdate
-         * @type {function}
-         * @since 3.0.0
-         */
-        this.onUpdate = GetValue(config, 'onUpdate', false);
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Animations.Animation#onUpdateParams
-         * @type {array}
-         * @since 3.0.0
-         */
-        this.onUpdateParams = GetValue(config, 'onUpdateParams', []);
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Animations.Animation#onComplete
-         * @type {function}
-         * @since 3.0.0
-         */
-        this.onComplete = GetValue(config, 'onComplete', false);
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Animations.Animation#onCompleteParams
-         * @type {array}
-         * @since 3.0.0
-         */
-        this.onCompleteParams = GetValue(config, 'onCompleteParams', []);
-
-        /**
-         * Global pause, effects all Game Objects using this Animation instance
+         * Global pause. All Game Objects using this Animation instance are impacted by this property.
          *
          * @name Phaser.Animations.Animation#paused
          * @type {boolean}
@@ -338,19 +214,17 @@ var Animation = new Class({
          */
         this.paused = false;
 
-        this.manager.on('pauseall', this.pause.bind(this));
-        this.manager.on('resumeall', this.resume.bind(this));
+        this.manager.on(Events.PAUSE_ALL, this.pause, this);
+        this.manager.on(Events.RESUME_ALL, this.resume, this);
     },
 
-    //  Add frames to the end of the animation
-
     /**
-     * [description]
+     * Add frames to the end of the animation.
      *
      * @method Phaser.Animations.Animation#addFrame
      * @since 3.0.0
      *
-     * @param {string|AnimationFrameConfig[]} config - [description]
+     * @param {(string|Phaser.Types.Animations.AnimationFrame[])} config - [description]
      *
      * @return {Phaser.Animations.Animation} This Animation object.
      */
@@ -359,16 +233,14 @@ var Animation = new Class({
         return this.addFrameAt(this.frames.length, config);
     },
 
-    //  Add frame/s into the animation
-
     /**
-     * [description]
+     * Add frame/s into the animation.
      *
      * @method Phaser.Animations.Animation#addFrameAt
      * @since 3.0.0
      *
-     * @param {integer} index - [description]
-     * @param {string|AnimationFrameConfig[]} config - [description]
+     * @param {integer} index - The index to insert the frame at within the animation.
+     * @param {(string|Phaser.Types.Animations.AnimationFrame[])} config - [description]
      *
      * @return {Phaser.Animations.Animation} This Animation object.
      */
@@ -401,24 +273,25 @@ var Animation = new Class({
     },
 
     /**
-     * [description]
+     * Check if the given frame index is valid.
      *
      * @method Phaser.Animations.Animation#checkFrame
      * @since 3.0.0
      *
-     * @param {integer} index - [description]
+     * @param {integer} index - The index to be checked.
      *
-     * @return {boolean} [description]
+     * @return {boolean} `true` if the index is valid, otherwise `false`.
      */
     checkFrame: function (index)
     {
-        return (index < this.frames.length);
+        return (index >= 0 && index < this.frames.length);
     },
 
     /**
      * [description]
      *
      * @method Phaser.Animations.Animation#completeAnimation
+     * @protected
      * @since 3.0.0
      *
      * @param {Phaser.GameObjects.Components.Animation} component - [description]
@@ -430,13 +303,14 @@ var Animation = new Class({
             component.parent.visible = false;
         }
 
-        component.stop(true);
+        component.stop();
     },
 
     /**
      * [description]
      *
      * @method Phaser.Animations.Animation#getFirstTick
+     * @protected
      * @since 3.0.0
      *
      * @param {Phaser.GameObjects.Components.Animation} component - [description]
@@ -452,19 +326,20 @@ var Animation = new Class({
 
         if (includeDelay)
         {
-            component.nextTick += (component._delay * 1000);
+            component.nextTick += component._delay;
         }
     },
 
     /**
-     * [description]
+     * Returns the AnimationFrame at the provided index
      *
      * @method Phaser.Animations.Animation#getFrameAt
+     * @protected
      * @since 3.0.0
      *
-     * @param {integer} index - [description]
+     * @param {integer} index - The index in the AnimationFrame array
      *
-     * @return {Phaser.Animations.AnimationFrame} [description]
+     * @return {Phaser.Animations.AnimationFrame} The frame at the index provided from the animation sequence
      */
     getFrameAt: function (index)
     {
@@ -478,7 +353,7 @@ var Animation = new Class({
      * @since 3.0.0
      *
      * @param {Phaser.Textures.TextureManager} textureManager - [description]
-     * @param {string|AnimationFrameConfig[]} frames - [description]
+     * @param {(string|Phaser.Types.Animations.AnimationFrame[])} frames - [description]
      * @param {string} [defaultTextureKey] - [description]
      *
      * @return {Phaser.Animations.AnimationFrame[]} [description]
@@ -533,7 +408,6 @@ var Animation = new Class({
             animationFrame = new Frame(key, frame, index, textureFrame);
 
             animationFrame.duration = GetValue(item, 'duration', 0);
-            animationFrame.onUpdate = GetValue(item, 'onUpdate', null);
 
             animationFrame.isFirst = (!prev);
 
@@ -594,13 +468,14 @@ var Animation = new Class({
     },
 
     /**
-     * [description]
+     * Loads the Animation values into the Animation Component.
      *
      * @method Phaser.Animations.Animation#load
+     * @private
      * @since 3.0.0
      *
-     * @param {Phaser.GameObjects.Components.Animation} component - [description]
-     * @param {integer} startFrame - [description]
+     * @param {Phaser.GameObjects.Components.Animation} component - The Animation Component to load values into.
+     * @param {integer} startFrame - The start frame of the animation to load.
      */
     load: function (component, startFrame)
     {
@@ -613,29 +488,51 @@ var Animation = new Class({
         {
             component.currentAnim = this;
 
-            component._timeScale = 1;
             component.frameRate = this.frameRate;
             component.duration = this.duration;
             component.msPerFrame = this.msPerFrame;
             component.skipMissedFrames = this.skipMissedFrames;
+
             component._delay = this.delay;
             component._repeat = this.repeat;
             component._repeatDelay = this.repeatDelay;
             component._yoyo = this.yoyo;
-            component._callbackArgs[1] = this;
-            component._updateParams = component._callbackArgs.concat(this.onUpdateParams);
         }
 
-        component.updateFrame(this.frames[startFrame]);
+        var frame = this.frames[startFrame];
+
+        if (startFrame === 0 && !component.forward)
+        {
+            frame = this.getLastFrame();
+        }
+
+        component.updateFrame(frame);
     },
 
     /**
-     * [description]
+     * Returns the frame closest to the given progress value between 0 and 1.
+     *
+     * @method Phaser.Animations.Animation#getFrameByProgress
+     * @since 3.4.0
+     *
+     * @param {number} value - A value between 0 and 1.
+     *
+     * @return {Phaser.Animations.AnimationFrame} The frame closest to the given progress value.
+     */
+    getFrameByProgress: function (value)
+    {
+        value = Clamp(value, 0, 1);
+
+        return FindClosestInSorted(value, this.frames, 'progress');
+    },
+
+    /**
+     * Advance the animation frame.
      *
      * @method Phaser.Animations.Animation#nextFrame
      * @since 3.0.0
      *
-     * @param {Phaser.GameObjects.Components.Animation} component - [description]
+     * @param {Phaser.GameObjects.Components.Animation} component - The Animation Component to advance.
      */
     nextFrame: function (component)
     {
@@ -648,19 +545,22 @@ var Animation = new Class({
             //  We're at the end of the animation
 
             //  Yoyo? (happens before repeat)
-            if (this.yoyo)
+            if (component._yoyo)
             {
-                component.forward = false;
-
-                component.updateFrame(frame.prevFrame);
-
-                //  Delay for the current frame
-                this.getNextTick(component);
+                this.handleYoyoFrame(component, false);
             }
             else if (component.repeatCounter > 0)
             {
                 //  Repeat (happens before complete)
-                this.repeatAnimation(component);
+
+                if (component._reverse && component.forward)
+                {
+                    component.forward = false;
+                }
+                else
+                {
+                    this.repeatAnimation(component);
+                }
             }
             else
             {
@@ -669,10 +569,58 @@ var Animation = new Class({
         }
         else
         {
-            component.updateFrame(frame.nextFrame);
-
-            this.getNextTick(component);
+            this.updateAndGetNextTick(component, frame.nextFrame);
         }
+    },
+
+    /**
+     * Handle the yoyo functionality in nextFrame and previousFrame methods.
+     *
+     * @method Phaser.Animations.Animation#handleYoyoFrame
+     * @private
+     * @since 3.12.0
+     *
+     * @param {Phaser.GameObjects.Components.Animation} component - The Animation Component to advance.
+     * @param {boolean} isReverse - Is animation in reverse mode? (Default: false)
+     */
+    handleYoyoFrame: function (component, isReverse)
+    {
+        if (!isReverse) { isReverse = false; }
+
+        if (component._reverse === !isReverse && component.repeatCounter > 0)
+        {
+            component.forward = isReverse;
+
+            this.repeatAnimation(component);
+
+            return;
+        }
+
+        if (component._reverse !== isReverse && component.repeatCounter === 0)
+        {
+            this.completeAnimation(component);
+
+            return;
+        }
+        
+        component.forward = isReverse;
+
+        var frame = (isReverse) ? component.currentFrame.nextFrame : component.currentFrame.prevFrame;
+
+        this.updateAndGetNextTick(component, frame);
+    },
+
+    /**
+     * Returns the animation last frame.
+     *
+     * @method Phaser.Animations.Animation#getLastFrame
+     * @since 3.12.0
+     *
+     * @return {Phaser.Animations.AnimationFrame} component - The Animation Last Frame.
+     */
+    getLastFrame: function ()
+    {
+        return this.frames[this.frames.length - 1];
     },
 
     /**
@@ -693,10 +641,23 @@ var Animation = new Class({
         {
             //  We're at the start of the animation
 
-            if (component.repeatCounter > 0)
+            if (component._yoyo)
             {
-                //  Repeat (happens before complete)
-                this.repeatAnimation(component);
+                this.handleYoyoFrame(component, true);
+            }
+            else if (component.repeatCounter > 0)
+            {
+                if (component._reverse && !component.forward)
+                {
+                    component.currentFrame = this.getLastFrame();
+                    this.repeatAnimation(component);
+                }
+                else
+                {
+                    //  Repeat (happens before complete)
+                    component.forward = true;
+                    this.repeatAnimation(component);
+                }
             }
             else
             {
@@ -705,10 +666,24 @@ var Animation = new Class({
         }
         else
         {
-            component.updateFrame(frame.prevFrame);
-
-            this.getNextTick(component);
+            this.updateAndGetNextTick(component, frame.prevFrame);
         }
+    },
+
+    /**
+     * Update Frame and Wait next tick.
+     *
+     * @method Phaser.Animations.Animation#updateAndGetNextTick
+     * @private
+     * @since 3.12.0
+     *
+     * @param {Phaser.Animations.AnimationFrame} frame - An Animation frame.
+     */
+    updateAndGetNextTick: function (component, frame)
+    {
+        component.updateFrame(frame);
+
+        this.getNextTick(component);
     },
 
     /**
@@ -734,12 +709,13 @@ var Animation = new Class({
     },
 
     /**
-     * [description]
+     * Removes a frame from the AnimationFrame array at the provided index
+     * and updates the animation accordingly.
      *
      * @method Phaser.Animations.Animation#removeFrameAt
      * @since 3.0.0
      *
-     * @param {integer} index - [description]
+     * @param {integer} index - The index in the AnimationFrame array
      *
      * @return {Phaser.Animations.Animation} This Animation object.
      */
@@ -756,39 +732,52 @@ var Animation = new Class({
      * [description]
      *
      * @method Phaser.Animations.Animation#repeatAnimation
+     * @fires Phaser.Animations.Events#ANIMATION_REPEAT
+     * @fires Phaser.Animations.Events#SPRITE_ANIMATION_REPEAT
+     * @fires Phaser.Animations.Events#SPRITE_ANIMATION_KEY_REPEAT
      * @since 3.0.0
      *
      * @param {Phaser.GameObjects.Components.Animation} component - [description]
      */
     repeatAnimation: function (component)
     {
+        if (component._pendingStop === 2)
+        {
+            return this.completeAnimation(component);
+        }
+
         if (component._repeatDelay > 0 && component.pendingRepeat === false)
         {
             component.pendingRepeat = true;
             component.accumulator -= component.nextTick;
-            component.nextTick += (component._repeatDelay * 1000);
+            component.nextTick += component._repeatDelay;
         }
         else
         {
             component.repeatCounter--;
 
-            component.forward = true;
+            component.updateFrame(component.currentFrame[(component.forward) ? 'nextFrame' : 'prevFrame']);
 
-            component.updateFrame(component.currentFrame.nextFrame);
-
-            this.getNextTick(component);
-
-            component.pendingRepeat = false;
-
-            if (this.onRepeat)
+            if (component.isPlaying)
             {
-                this.onRepeat.apply(this.callbackScope, component._callbackArgs.concat(this.onRepeatParams));
+                this.getNextTick(component);
+
+                component.pendingRepeat = false;
+
+                var frame = component.currentFrame;
+                var parent = component.parent;
+
+                this.emit(Events.ANIMATION_REPEAT, this, frame);
+
+                parent.emit(Events.SPRITE_ANIMATION_KEY_REPEAT + this.key, this, frame, component.repeatCounter, parent);
+
+                parent.emit(Events.SPRITE_ANIMATION_REPEAT, this, frame, component.repeatCounter, parent);
             }
         }
     },
 
     /**
-     * [description]
+     * Sets the texture frame the animation uses for rendering.
      *
      * @method Phaser.Animations.Animation#setFrame
      * @since 3.0.0
@@ -809,12 +798,12 @@ var Animation = new Class({
     },
 
     /**
-     * [description]
+     * Converts the animation data to JSON.
      *
      * @method Phaser.Animations.Animation#toJSON
      * @since 3.0.0
      *
-     * @return {JSONAnimation} [description]
+     * @return {Phaser.Types.Animations.JSONAnimation} [description]
      */
     toJSON: function ()
     {
@@ -854,9 +843,11 @@ var Animation = new Class({
         var len = this.frames.length;
         var slice = 1 / (len - 1);
 
+        var frame;
+
         for (var i = 0; i < len; i++)
         {
-            var frame = this.frames[i];
+            frame = this.frames[i];
 
             frame.index = i + 1;
             frame.isFirst = false;
@@ -866,11 +857,21 @@ var Animation = new Class({
             if (i === 0)
             {
                 frame.isFirst = true;
-                frame.isLast = (len === 1);
-                frame.prevFrame = this.frames[len - 1];
-                frame.nextFrame = this.frames[i + 1];
+
+                if (len === 1)
+                {
+                    frame.isLast = true;
+                    frame.nextFrame = frame;
+                    frame.prevFrame = frame;
+                }
+                else
+                {
+                    frame.isLast = false;
+                    frame.prevFrame = this.frames[len - 1];
+                    frame.nextFrame = this.frames[i + 1];
+                }
             }
-            else if (i === len - 1)
+            else if (i === len - 1 && len > 1)
             {
                 frame.isLast = true;
                 frame.prevFrame = this.frames[len - 2];
@@ -924,7 +925,21 @@ var Animation = new Class({
      */
     destroy: function ()
     {
-        //  TODO
+        this.removeAllListeners();
+
+        this.manager.off(Events.PAUSE_ALL, this.pause, this);
+        this.manager.off(Events.RESUME_ALL, this.resume, this);
+
+        this.manager.remove(this.key);
+
+        for (var i = 0; i < this.frames.length; i++)
+        {
+            this.frames[i].destroy();
+        }
+
+        this.frames = [];
+
+        this.manager = null;
     }
 
 });

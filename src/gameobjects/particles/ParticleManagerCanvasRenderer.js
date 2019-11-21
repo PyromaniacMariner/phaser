@@ -1,10 +1,8 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
-
-var GameObject = require('../GameObject');
 
 /**
  * Renders this Game Object with the Canvas Renderer to the given Camera.
@@ -15,51 +13,65 @@ var GameObject = require('../GameObject');
  * @since 3.0.0
  * @private
  *
- * @param {Phaser.Renderer.CanvasRenderer} renderer - A reference to the current active Canvas renderer.
- * @param {Phaser.GameObjects.Particles} emitterManager - The Game Object being rendered in this call.
+ * @param {Phaser.Renderer.Canvas.CanvasRenderer} renderer - A reference to the current active Canvas renderer.
+ * @param {Phaser.GameObjects.Particles.ParticleEmitterManager} emitterManager - The Game Object being rendered in this call.
  * @param {number} interpolationPercentage - Reserved for future use and custom pipelines.
  * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
+ * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
  */
-var ParticleManagerCanvasRenderer = function (renderer, emitterManager, interpolationPercentage, camera)
+var ParticleManagerCanvasRenderer = function (renderer, emitterManager, interpolationPercentage, camera, parentMatrix)
 {
     var emitters = emitterManager.emitters.list;
+    var emittersLength = emitters.length;
 
-    if (emitters.length === 0 || GameObject.RENDER_MASK !== emitterManager.renderFlags || (emitterManager.cameraFilter > 0 && (emitterManager.cameraFilter & camera._id)))
+    if (emittersLength === 0)
     {
         return;
     }
 
-    for (var i = 0; i < emitters.length; i++)
+    var camMatrix = renderer._tempMatrix1.copyFrom(camera.matrix);
+    var calcMatrix = renderer._tempMatrix2;
+    var particleMatrix = renderer._tempMatrix3;
+    var managerMatrix = renderer._tempMatrix4.applyITRS(emitterManager.x, emitterManager.y, emitterManager.rotation, emitterManager.scaleX, emitterManager.scaleY);
+
+    camMatrix.multiply(managerMatrix);
+
+    var roundPixels = camera.roundPixels;
+
+    var ctx = renderer.currentContext;
+
+    ctx.save();
+
+    for (var e = 0; e < emittersLength; e++)
     {
-        var emitter = emitters[i];
-
+        var emitter = emitters[e];
         var particles = emitter.alive;
-        var length = particles.length;
+        var particleCount = particles.length;
 
-        if (!emitter.visible || length === 0)
+        if (!emitter.visible || particleCount === 0)
         {
             continue;
         }
 
-        var ctx = renderer.currentContext;
+        var scrollX = camera.scrollX * emitter.scrollFactorX;
+        var scrollY = camera.scrollY * emitter.scrollFactorY;
 
-        var lastAlpha = ctx.globalAlpha;
-        var cameraScrollX = camera.scrollX * emitter.scrollFactorX;
-        var cameraScrollY = camera.scrollY * emitter.scrollFactorY;
-
-        if (renderer.currentBlendMode !== emitter.blendMode)
+        if (parentMatrix)
         {
-            renderer.currentBlendMode = emitter.blendMode;
-            ctx.globalCompositeOperation = renderer.blendModes[emitter.blendMode];
+            //  Multiply the camera by the parent matrix
+            camMatrix.multiplyWithOffset(parentMatrix, -scrollX, -scrollY);
+
+            scrollX = 0;
+            scrollY = 0;
         }
 
-        var roundPixels = renderer.config.roundPixels;
+        ctx.globalCompositeOperation = renderer.blendModes[emitter.blendMode];
 
-        for (var index = 0; index < length; ++index)
+        for (var i = 0; i < particleCount; i++)
         {
-            var particle = particles[index];
+            var particle = particles[i];
 
-            var alpha = ((particle.color >> 24) & 0xFF) / 255.0;
+            var alpha = particle.alpha * camera.alpha;
 
             if (alpha <= 0)
             {
@@ -67,41 +79,39 @@ var ParticleManagerCanvasRenderer = function (renderer, emitterManager, interpol
             }
 
             var frame = particle.frame;
-            var width = frame.width;
-            var height = frame.height;
-            var ox = width * 0.5;
-            var oy = height * 0.5;
             var cd = frame.canvasData;
 
-            var x = -ox;
-            var y = -oy;
+            var x = -(frame.halfWidth);
+            var y = -(frame.halfHeight);
 
-            var tx = particle.x - cameraScrollX * particle.scrollFactorX;
-            var ty = particle.y - cameraScrollY * particle.scrollFactorY;
+            particleMatrix.applyITRS(0, 0, particle.rotation, particle.scaleX, particle.scaleY);
 
-            if (roundPixels)
-            {
-                tx |= 0;
-                ty |= 0;
-            }
+            particleMatrix.e = particle.x - scrollX;
+            particleMatrix.f = particle.y - scrollY;
+
+            camMatrix.multiply(particleMatrix, calcMatrix);
 
             ctx.globalAlpha = alpha;
         
             ctx.save();
 
-            ctx.translate(tx, ty);
+            calcMatrix.copyToContext(ctx);
 
-            ctx.rotate(particle.rotation);
+            if (roundPixels)
+            {
+                x = Math.round(x);
+                y = Math.round(y);
+            }
 
-            ctx.scale(particle.scaleX, particle.scaleY);
+            ctx.imageSmoothingEnabled = !(!renderer.antialias || frame.source.scaleMode);
 
-            ctx.drawImage(frame.source.image, cd.sx, cd.sy, cd.sWidth, cd.sHeight, x, y, cd.dWidth, cd.dHeight);
+            ctx.drawImage(frame.source.image, cd.x, cd.y, cd.width, cd.height, x, y, cd.width, cd.height);
 
             ctx.restore();
         }
-
-        ctx.globalAlpha = lastAlpha;
     }
+
+    ctx.restore();
 };
 
 module.exports = ParticleManagerCanvasRenderer;

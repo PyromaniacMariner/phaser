@@ -1,10 +1,9 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
-var Bodies = require('./lib/factory/Bodies');
 var Class = require('../../utils/Class');
 var Components = require('./components');
 var GameObject = require('../../gameobjects/GameObject');
@@ -22,9 +21,9 @@ var Vector2 = require('../../math/Vector2');
  * events and physics bodies, or be tweened, tinted or scrolled. The main difference between an
  * Image and a Sprite is that you cannot animate an Image as they do not have the Animation component.
  *
- * @class MatterImage
+ * @class Image
  * @extends Phaser.GameObjects.Image
- * @memberOf Phaser.Physics.Matter
+ * @memberof Phaser.Physics.Matter
  * @constructor
  * @since 3.0.0
  *
@@ -47,7 +46,6 @@ var Vector2 = require('../../math/Vector2');
  * @extends Phaser.GameObjects.Components.GetBounds
  * @extends Phaser.GameObjects.Components.Origin
  * @extends Phaser.GameObjects.Components.Pipeline
- * @extends Phaser.GameObjects.Components.ScaleMode
  * @extends Phaser.GameObjects.Components.ScrollFactor
  * @extends Phaser.GameObjects.Components.Size
  * @extends Phaser.GameObjects.Components.Texture
@@ -59,8 +57,8 @@ var Vector2 = require('../../math/Vector2');
  * @param {number} x - The horizontal position of this Game Object in the world.
  * @param {number} y - The vertical position of this Game Object in the world.
  * @param {string} texture - The key of the Texture this Game Object will use to render with, as stored in the Texture Manager.
- * @param {string|integer} [frame] - An optional frame from the Texture this Game Object is rendering with.
- * @param {object} options - [description]
+ * @param {(string|integer)} [frame] - An optional frame from the Texture this Game Object is rendering with.
+ * @param {object} [options={}] - Matter.js configuration object.
  */
 var MatterImage = new Class({
 
@@ -92,26 +90,34 @@ var MatterImage = new Class({
         this.setSizeToFrame();
         this.setOrigin();
 
+        /**
+         * [description]
+         *
+         * @name Phaser.Physics.Matter.Image#world
+         * @type {Phaser.Physics.Matter.World}
+         * @since 3.0.0
+         */
         this.world = world;
 
+        /**
+         * [description]
+         *
+         * @name Phaser.Physics.Matter.Image#_tempVec2
+         * @type {Phaser.Math.Vector2}
+         * @private
+         * @since 3.0.0
+         */
         this._tempVec2 = new Vector2(x, y);
 
         var shape = GetFastValue(options, 'shape', null);
 
-        if (!shape)
+        if (shape)
         {
-            this.body = Bodies.rectangle(x, y, this.width, this.height, options);
-
-            this.body.gameObject = this;
-
-            if (GetFastValue(options, 'addToWorld', true))
-            {
-                world.add(this.body);
-            }
+            this.setBody(shape, options);
         }
         else
         {
-            this.setBody(shape, options);
+            this.setRectangle(this.width, this.height, options);
         }
 
         this.setPosition(x, y);

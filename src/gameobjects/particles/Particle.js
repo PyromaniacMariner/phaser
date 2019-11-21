@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../../utils/Class');
@@ -10,10 +10,11 @@ var DistanceBetween = require('../../math/distance/DistanceBetween');
 
 /**
  * @classdesc
- * [description]
+ * A Particle is a simple Game Object controlled by a Particle Emitter and Manager, and rendered by the Manager.
+ * It uses its own lightweight physics system, and can interact only with its Emitter's bounds and zones.
  *
  * @class Particle
- * @memberOf Phaser.GameObjects.Particles
+ * @memberof Phaser.GameObjects.Particles
  * @constructor
  * @since 3.0.0
  *
@@ -37,24 +38,14 @@ var Particle = new Class({
         this.emitter = emitter;
 
         /**
-         * [description]
+         * The texture frame used to render this Particle.
          *
          * @name Phaser.GameObjects.Particles.Particle#frame
-         * @type {Phaser.Texture.Frame}
+         * @type {Phaser.Textures.Frame}
          * @default null
          * @since 3.0.0
          */
         this.frame = null;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.GameObjects.Particles.Particle#index
-         * @type {number}
-         * @default 0
-         * @since 3.0.0
-         */
-        this.index = 0;
 
         /**
          * The x coordinate of this Particle.
@@ -150,7 +141,7 @@ var Particle = new Class({
          * The horizontal scale of this Particle.
          *
          * @name Phaser.GameObjects.Particles.Particle#scaleX
-         * @type {float}
+         * @type {number}
          * @default 1
          * @since 3.0.0
          */
@@ -160,7 +151,7 @@ var Particle = new Class({
          * The vertical scale of this Particle.
          *
          * @name Phaser.GameObjects.Particles.Particle#scaleY
-         * @type {float}
+         * @type {number}
          * @default 1
          * @since 3.0.0
          */
@@ -170,7 +161,7 @@ var Particle = new Class({
          * The alpha value of this Particle.
          *
          * @name Phaser.GameObjects.Particles.Particle#alpha
-         * @type {float}
+         * @type {number}
          * @default 1
          * @since 3.0.0
          */
@@ -197,43 +188,14 @@ var Particle = new Class({
         this.rotation = 0;
 
         /**
-         * The horizontal scroll factor of this Particle.
-         *
-         * @name Phaser.GameObjects.Particles.Particle#scrollFactorX
-         * @type {number}
-         * @default 1
-         * @since 3.0.0
-         */
-        this.scrollFactorX = 1;
-
-        /**
-         * The vertical scroll factor of this Particle.
-         *
-         * @name Phaser.GameObjects.Particles.Particle#scrollFactorY
-         * @type {number}
-         * @default 1
-         * @since 3.0.0
-         */
-        this.scrollFactorY = 1;
-
-        /**
          * The tint applied to this Particle.
          *
          * @name Phaser.GameObjects.Particles.Particle#tint
-         * @type {number}
+         * @type {integer}
          * @webglOnly
          * @since 3.0.0
          */
-        this.tint = 0xffffffff;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.GameObjects.Particles.Particle#color
-         * @type {number}
-         * @since 3.0.0
-         */
-        this.color = 0xffffffff;
+        this.tint = 0xffffff;
 
         /**
          * The lifespan of this Particle in ms.
@@ -266,10 +228,10 @@ var Particle = new Class({
         this.delayCurrent = 0;
 
         /**
-         * The normalized lifespan T value.
+         * The normalized lifespan T value, where 0 is the start and 1 is the end.
          *
          * @name Phaser.GameObjects.Particles.Particle#lifeT
-         * @type {float}
+         * @type {number}
          * @default 0
          * @since 3.0.0
          */
@@ -302,6 +264,18 @@ var Particle = new Class({
     isAlive: function ()
     {
         return (this.lifeCurrent > 0);
+    },
+
+    /**
+     * Resets the position of this particle back to zero.
+     *
+     * @method Phaser.GameObjects.Particles.Particle#resetPosition
+     * @since 3.16.0
+     */
+    resetPosition: function ()
+    {
+        this.x = 0;
+        this.y = 0;
     },
 
     /**
@@ -410,10 +384,6 @@ var Particle = new Class({
         this.alpha = emitter.alpha.onEmit(this, 'alpha');
 
         this.tint = emitter.tint.onEmit(this, 'tint');
-
-        this.color = (this.tint & 0x00FFFFFF) | (((this.alpha * 0xFF) | 0) << 24);
-
-        this.index = emitter.alive.length;
     },
 
     /**
@@ -424,8 +394,8 @@ var Particle = new Class({
      *
      * @param {Phaser.GameObjects.Particles.ParticleEmitter} emitter - The Emitter that is updating this Particle.
      * @param {number} delta - The delta time in ms.
-     * @param {float} step - The delta value divided by 1000.
-     * @param {array} processors - [description]
+     * @param {number} step - The delta value divided by 1000.
+     * @param {array} processors - Particle processors (gravity wells).
      */
     computeVelocity: function (emitter, delta, step, processors)
     {
@@ -526,7 +496,7 @@ var Particle = new Class({
      * @since 3.0.0
      *
      * @param {number} delta - The delta time in ms.
-     * @param {float} step - The delta value divided by 1000.
+     * @param {number} step - The delta value divided by 1000.
      * @param {array} processors - An optional array of update processors.
      *
      * @return {boolean} Returns `true` if this Particle has now expired and should be removed, otherwise `false` if still active.
@@ -582,8 +552,6 @@ var Particle = new Class({
         this.alpha = emitter.alpha.onUpdate(this, 'alpha', t, this.alpha);
 
         this.tint = emitter.tint.onUpdate(this, 'tint', t, this.tint);
-
-        this.color = (this.tint & 0x00FFFFFF) | (((this.alpha * 0xFF) | 0) << 24);
 
         this.lifeCurrent -= delta;
 

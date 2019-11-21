@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../../utils/Class');
@@ -10,16 +10,14 @@ var Image = require('../../gameobjects/image/Image');
 
 /**
  * @classdesc
- * An Arcade Physics Image Game Object.
- * 
- * An Image is a light-weight Game Object useful for the display of static images in your game,
- * such as logos, backgrounds, scenery or other non-animated elements. Images can have input
- * events and physics bodies, or be tweened, tinted or scrolled. The main difference between an
- * Image and a Sprite is that you cannot animate an Image as they do not have the Animation component.
+ * An Arcade Physics Image is an Image with an Arcade Physics body and related components.
+ * The body can be dynamic or static.
+ *
+ * The main difference between an Arcade Image and an Arcade Sprite is that you cannot animate an Arcade Image.
  *
  * @class Image
  * @extends Phaser.GameObjects.Image
- * @memberOf Phaser.Physics.Arcade
+ * @memberof Phaser.Physics.Arcade
  * @constructor
  * @since 3.0.0
  *
@@ -42,7 +40,6 @@ var Image = require('../../gameobjects/image/Image');
  * @extends Phaser.GameObjects.Components.GetBounds
  * @extends Phaser.GameObjects.Components.Origin
  * @extends Phaser.GameObjects.Components.Pipeline
- * @extends Phaser.GameObjects.Components.ScaleMode
  * @extends Phaser.GameObjects.Components.ScrollFactor
  * @extends Phaser.GameObjects.Components.Size
  * @extends Phaser.GameObjects.Components.Texture
@@ -54,7 +51,7 @@ var Image = require('../../gameobjects/image/Image');
  * @param {number} x - The horizontal position of this Game Object in the world.
  * @param {number} y - The vertical position of this Game Object in the world.
  * @param {string} texture - The key of the Texture this Game Object will use to render with, as stored in the Texture Manager.
- * @param {string|integer} [frame] - An optional frame from the Texture this Game Object is rendering with.
+ * @param {(string|integer)} [frame] - An optional frame from the Texture this Game Object is rendering with.
  */
 var ArcadeImage = new Class({
 
@@ -80,6 +77,16 @@ var ArcadeImage = new Class({
     function ArcadeImage (scene, x, y, texture, frame)
     {
         Image.call(this, scene, x, y, texture, frame);
+
+        /**
+         * This Game Object's Physics Body.
+         *
+         * @name Phaser.Physics.Arcade.Image#body
+         * @type {?(Phaser.Physics.Arcade.Body|Phaser.Physics.Arcade.StaticBody)}
+         * @default null
+         * @since 3.0.0
+         */
+        this.body = null;
     }
 
 });

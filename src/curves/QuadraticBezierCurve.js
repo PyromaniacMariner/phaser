@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../utils/Class');
@@ -15,11 +15,11 @@ var Vector2 = require('../math/Vector2');
  *
  * @class QuadraticBezier
  * @extends Phaser.Curves.Curve
- * @memberOf Phaser.Curves
+ * @memberof Phaser.Curves
  * @constructor
  * @since 3.2.0
  *
- * @param {Phaser.Math.Vector2|Phaser.Math.Vector2[]} p0 - Start point, or an array of point pairs.
+ * @param {(Phaser.Math.Vector2|number[])} p0 - Start point, or an array of point pairs.
  * @param {Phaser.Math.Vector2} p1 - Control Point 1.
  * @param {Phaser.Math.Vector2} p2 - Control Point 2.
  */
@@ -74,6 +74,8 @@ var QuadraticBezier = new Class({
      * @method Phaser.Curves.QuadraticBezier#getStartPoint
      * @since 3.2.0
      *
+     * @generic {Phaser.Math.Vector2} O - [out,$return]
+     *
      * @param {Phaser.Math.Vector2} [out] - A Vector2 object to store the result in. If not given will be created.
      *
      * @return {Phaser.Math.Vector2} The coordinates of the point on the curve. If an `out` object was given this will be returned.
@@ -106,7 +108,9 @@ var QuadraticBezier = new Class({
      * @method Phaser.Curves.QuadraticBezier#getPoint
      * @since 3.2.0
      *
-     * @param {float} t - The position along the curve to return. Where 0 is the start and 1 is the end.
+     * @generic {Phaser.Math.Vector2} O - [out,$return]
+     *
+     * @param {number} t - The position along the curve to return. Where 0 is the start and 1 is the end.
      * @param {Phaser.Math.Vector2} [out] - A Vector2 object to store the result in. If not given will be created.
      *
      * @return {Phaser.Math.Vector2} The coordinates of the point on the curve. If an `out` object was given this will be returned.
@@ -131,10 +135,12 @@ var QuadraticBezier = new Class({
      * @method Phaser.Curves.QuadraticBezier#draw
      * @since 3.2.0
      *
-     * @param {Phaser.GameObjects.Graphics} graphics - [description]
-     * @param {integer} [pointsTotal=32] - [description]
+     * @generic {Phaser.GameObjects.Graphics} G - [graphics,$return]
      *
-     * @return {Phaser.GameObjects.Graphics} [description]
+     * @param {Phaser.GameObjects.Graphics} graphics - `Graphics` object to draw onto.
+     * @param {integer} [pointsTotal=32] - Number of points to be used for drawing the curve. Higher numbers result in smoother curve but require more processing.
+     *
+     * @return {Phaser.GameObjects.Graphics} `Graphics` object that was drawn to.
      */
     draw: function (graphics, pointsTotal)
     {
@@ -157,12 +163,12 @@ var QuadraticBezier = new Class({
     },
 
     /**
-     * [description]
+     * Converts the curve into a JSON compatible object.
      *
      * @method Phaser.Curves.QuadraticBezier#toJSON
      * @since 3.2.0
      *
-     * @return {JSONCurve} The JSON object containing this curve data.
+     * @return {Phaser.Types.Curves.JSONCurve} The JSON object containing this curve data.
      */
     toJSON: function ()
     {
@@ -179,14 +185,14 @@ var QuadraticBezier = new Class({
 });
 
 /**
- * [description]
+ * Creates a curve from a JSON object, e. g. created by `toJSON`.
  *
  * @function Phaser.Curves.QuadraticBezier.fromJSON
  * @since 3.2.0
  *
- * @param {JSONCurve} data - The JSON object containing this curve data.
+ * @param {Phaser.Types.Curves.JSONCurve} data - The JSON object containing this curve data.
  *
- * @return {Phaser.Curves.QuadraticBezier} [description]
+ * @return {Phaser.Curves.QuadraticBezier} The created curve instance.
  */
 QuadraticBezier.fromJSON = function (data)
 {

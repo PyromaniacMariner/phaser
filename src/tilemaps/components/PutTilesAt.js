@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var CalculateFacesWithin = require('./CalculateFacesWithin');
@@ -15,13 +15,13 @@ var PutTileAt = require('./PutTileAt');
  * within the region tiles were changed.
  *
  * @function Phaser.Tilemaps.Components.PutTilesAt
+ * @private
  * @since 3.0.0
  *
- * @param {integer[]|integer[][]|Phaser.Tilemaps.Tile[]|Phaser.Tilemaps.Tile[][]} tile - A row (array) or grid (2D array) of Tiles
- * or tile indexes to place.
- * @param {integer} tileX - [description]
- * @param {integer} tileY - [description]
- * @param {boolean} [recalculateFaces=true] - [description]
+ * @param {(integer[]|integer[][]|Phaser.Tilemaps.Tile[]|Phaser.Tilemaps.Tile[][])} tile - A row (array) or grid (2D array) of Tiles or tile indexes to place.
+ * @param {integer} tileX - The x coordinate, in tiles, not pixels.
+ * @param {integer} tileY - The y coordinate, in tiles, not pixels.
+ * @param {boolean} [recalculateFaces=true] - `true` if the faces data should be recalculated.
  * @param {Phaser.Tilemaps.LayerData} layer - The Tilemap Layer to act upon.
  */
 var PutTilesAt = function (tilesArray, tileX, tileY, recalculateFaces, layer)

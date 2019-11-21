@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../utils/Class');
@@ -16,7 +16,7 @@ var Vector2 = require('../math/Vector2');
  * Based on the three.js Curve classes created by [zz85](http://www.lab4games.net/zz85/blog)
  *
  * @class Curve
- * @memberOf Phaser.Curves
+ * @memberof Phaser.Curves
  * @constructor
  * @since 3.0.0
  *
@@ -117,6 +117,8 @@ var Curve = new Class({
      * @method Phaser.Curves.Curve#draw
      * @since 3.0.0
      *
+     * @generic {Phaser.GameObjects.Graphics} G - [graphics,$return]
+     *
      * @param {Phaser.GameObjects.Graphics} graphics - The Graphics instance onto which this curve will be drawn.
      * @param {integer} [pointsTotal=32] - The resolution of the curve. The higher the value the smoother it will render, at the cost of rendering performance.
      *
@@ -129,7 +131,7 @@ var Curve = new Class({
         //  So you can chain graphics calls
         return graphics.strokePoints(this.getPoints(pointsTotal));
     },
-
+    
     /**
      * Returns a Rectangle where the position and dimensions match the bounds of this Curve.
      *
@@ -190,9 +192,9 @@ var Curve = new Class({
      * @method Phaser.Curves.Curve#getEndPoint
      * @since 3.0.0
      *
-     * @param {Phaser.Math.Vector2} out - [description]
+     * @param {Phaser.Math.Vector2} [out] - Optional Vector object to store the result in.
      *
-     * @return {Phaser.Math.Vector2} [description]
+     * @return {Phaser.Math.Vector2} Vector2 containing the coordinates of the curves end point.
      */
     getEndPoint: function (out)
     {
@@ -201,10 +203,8 @@ var Curve = new Class({
         return this.getPointAt(1, out);
     },
 
-    // Get total curve arc length
-
     /**
-     * [description]
+     * Get total curve arc length
      *
      * @method Phaser.Curves.Curve#getLength
      * @since 3.0.0
@@ -218,10 +218,9 @@ var Curve = new Class({
         return lengths[lengths.length - 1];
     },
 
-    // Get list of cumulative segment lengths
 
     /**
-     * [description]
+     * Get list of cumulative segment lengths
      *
      * @method Phaser.Curves.Curve#getLengths
      * @since 3.0.0
@@ -274,7 +273,9 @@ var Curve = new Class({
      * @method Phaser.Curves.Curve#getPointAt
      * @since 3.0.0
      *
-     * @param {float} u - [description]
+     * @generic {Phaser.Math.Vector2} O - [out,$return]
+     *
+     * @param {number} u - [description]
      * @param {Phaser.Math.Vector2} [out] - [description]
      *
      * @return {Phaser.Math.Vector2} [description]
@@ -294,22 +295,35 @@ var Curve = new Class({
      * @method Phaser.Curves.Curve#getPoints
      * @since 3.0.0
      *
-     * @param {integer} [divisions] - [description]
+     * @param {integer} divisions - The number of evenly spaced points from the curve to return. If falsy, step param will be used to calculate the number of points.
+     * @param {number} step - Step between points. Used to calculate the number of points to return when divisions is falsy. Ignored if divisions is positive.     
+     * @param {(array|Phaser.Math.Vector2[])} [out] - An optional array to store the points in.
      *
-     * @return {Phaser.Math.Vector2[]} [description]
+     * @return {(array|Phaser.Math.Vector2[])} An array of Points from the curve.
      */
-    getPoints: function (divisions)
+    getPoints: function (divisions, stepRate, out)
     {
-        if (divisions === undefined) { divisions = this.defaultDivisions; }
+        if (out === undefined) { out = []; }
 
-        var points = [];
+        //  If divisions is a falsey value (false, null, 0, undefined, etc) then we calculate it based on the stepRate instead.
+        if (!divisions)
+        {
+            if (!stepRate)
+            {
+                divisions = this.defaultDivisions;
+            }
+            else
+            {
+                divisions = this.getLength() / stepRate;
+            }
+        }
 
         for (var d = 0; d <= divisions; d++)
         {
-            points.push(this.getPoint(d / divisions));
+            out.push(this.getPoint(d / divisions));
         }
 
-        return points;
+        return out;
     },
 
     /**
@@ -317,6 +331,8 @@ var Curve = new Class({
      *
      * @method Phaser.Curves.Curve#getRandomPoint
      * @since 3.0.0
+     *
+     * @generic {Phaser.Math.Vector2} O - [out,$return]
      *
      * @param {Phaser.Math.Vector2} [out] - [description]
      *
@@ -363,6 +379,8 @@ var Curve = new Class({
      * @method Phaser.Curves.Curve#getStartPoint
      * @since 3.0.0
      *
+     * @generic {Phaser.Math.Vector2} O - [out,$return]
+     *
      * @param {Phaser.Math.Vector2} [out] - [description]
      *
      * @return {Phaser.Math.Vector2} [description]
@@ -374,21 +392,21 @@ var Curve = new Class({
         return this.getPointAt(0, out);
     },
 
-    // Returns a unit vector tangent at t
-    // In case any sub curve does not implement its tangent derivation,
-    // 2 points a small delta apart will be used to find its gradient
-    // which seems to give a reasonable approximation
-
     /**
-     * [description]
+     * Returns a unit vector tangent at t
+     * In case any sub curve does not implement its tangent derivation,
+     * 2 points a small delta apart will be used to find its gradient
+     * which seems to give a reasonable approximation
      *
      * @method Phaser.Curves.Curve#getTangent
      * @since 3.0.0
      *
+     * @generic {Phaser.Math.Vector2} O - [out,$return]
+     *
      * @param {number} t - [description]
      * @param {Phaser.Math.Vector2} [out] - [description]
      *
-     * @return {Phaser.Math.Vector2} [description]
+     * @return {Phaser.Math.Vector2} Vector approximating the tangent line at the point t (delta +/- 0.0001)
      */
     getTangent: function (t, out)
     {
@@ -422,7 +440,9 @@ var Curve = new Class({
      * @method Phaser.Curves.Curve#getTangentAt
      * @since 3.0.0
      *
-     * @param {float} u - [description]
+     * @generic {Phaser.Math.Vector2} O - [out,$return]
+     *
+     * @param {number} u - [description]
      * @param {Phaser.Math.Vector2} [out] - [description]
      *
      * @return {Phaser.Math.Vector2} [description]
@@ -444,7 +464,7 @@ var Curve = new Class({
      * @param {integer} distance - [description]
      * @param {integer} [divisions] - [description]
      *
-     * @return {float} [description]
+     * @return {number} [description]
      */
     getTFromDistance: function (distance, divisions)
     {
@@ -464,7 +484,7 @@ var Curve = new Class({
      * @method Phaser.Curves.Curve#getUtoTmapping
      * @since 3.0.0
      *
-     * @param {float} u - [description]
+     * @param {number} u - [description]
      * @param {integer} distance - [description]
      * @param {integer} [divisions] - [description]
      *

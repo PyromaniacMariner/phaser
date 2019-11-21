@@ -1,14 +1,14 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var AddToDOM = require('../../../dom/AddToDOM');
 var CanvasPool = require('../../../display/canvas/CanvasPool');
 var Class = require('../../../utils/Class');
 var Components = require('../../components');
-var CONST = require('../../../const');
+var GameEvents = require('../../../core/events');
 var GameObject = require('../../GameObject');
 var GetTextSize = require('../GetTextSize');
 var GetValue = require('../../../utils/object/GetValue');
@@ -18,22 +18,60 @@ var TextStyle = require('../TextStyle');
 
 /**
  * @classdesc
- * [description]
+ * A Text Game Object.
+ * 
+ * Text objects work by creating their own internal hidden Canvas and then renders text to it using
+ * the standard Canvas `fillText` API. It then creates a texture from this canvas which is rendered
+ * to your game during the render pass.
+ * 
+ * Because it uses the Canvas API you can take advantage of all the features this offers, such as
+ * applying gradient fills to the text, or strokes, shadows and more. You can also use custom fonts
+ * loaded externally, such as Google or TypeKit Web fonts.
+ * 
+ * **Important:** If the font you wish to use has a space or digit in its name, such as
+ * 'Press Start 2P' or 'Roboto Condensed', then you _must_ put the font name in quotes, either
+ * when creating the Text object, or when setting the font via `setFont` or `setFontFamily`. I.e.:
+ * 
+ * ```javascript
+ * this.add.text(0, 0, 'Hello World', { fontFamily: '"Roboto Condensed"' });
+ * ```
+ * 
+ * Equally, if you wish to provide a list of fallback fonts, then you should ensure they are all
+ * quoted properly, too:
+ * 
+ * ```javascript
+ * this.add.text(0, 0, 'Hello World', { fontFamily: 'Verdana, "Times New Roman", Tahoma, serif' });
+ * ```
+ *
+ * You can only display fonts that are currently loaded and available to the browser: therefore fonts must
+ * be pre-loaded. Phaser does not do ths for you, so you will require the use of a 3rd party font loader,
+ * or have the fonts ready available in the CSS on the page in which your Phaser game resides.
+ *
+ * See {@link http://www.jordanm.co.uk/tinytype this compatibility table} for the available default fonts
+ * across mobile browsers.
+ * 
+ * A note on performance: Every time the contents of a Text object changes, i.e. changing the text being
+ * displayed, or the style of the text, it needs to remake the Text canvas, and if on WebGL, re-upload the
+ * new texture to the GPU. This can be an expensive operation if used often, or with large quantities of
+ * Text objects in your game. If you run into performance issues you would be better off using Bitmap Text
+ * instead, as it benefits from batching and avoids expensive Canvas API calls.
  *
  * @class Text
  * @extends Phaser.GameObjects.GameObject
- * @memberOf Phaser.GameObjects
+ * @memberof Phaser.GameObjects
  * @constructor
  * @since 3.0.0
  *
  * @extends Phaser.GameObjects.Components.Alpha
  * @extends Phaser.GameObjects.Components.BlendMode
+ * @extends Phaser.GameObjects.Components.ComputedSize
+ * @extends Phaser.GameObjects.Components.Crop
  * @extends Phaser.GameObjects.Components.Depth
  * @extends Phaser.GameObjects.Components.Flip
  * @extends Phaser.GameObjects.Components.GetBounds
+ * @extends Phaser.GameObjects.Components.Mask
  * @extends Phaser.GameObjects.Components.Origin
  * @extends Phaser.GameObjects.Components.Pipeline
- * @extends Phaser.GameObjects.Components.ScaleMode
  * @extends Phaser.GameObjects.Components.ScrollFactor
  * @extends Phaser.GameObjects.Components.Tint
  * @extends Phaser.GameObjects.Components.Transform
@@ -42,8 +80,8 @@ var TextStyle = require('../TextStyle');
  * @param {Phaser.Scene} scene - The Scene to which this Game Object belongs. A Game Object can only belong to one Scene at a time.
  * @param {number} x - The horizontal position of this Game Object in the world.
  * @param {number} y - The vertical position of this Game Object in the world.
- * @param {string|string[]} text - The text this Text object will display.
- * @param {object} style - The text style configuration object.
+ * @param {(string|string[])} text - The text this Text object will display.
+ * @param {Phaser.Types.GameObjects.Text.TextStyle} style - The text style configuration object.
  */
 var Text = new Class({
 
@@ -52,12 +90,14 @@ var Text = new Class({
     Mixins: [
         Components.Alpha,
         Components.BlendMode,
+        Components.ComputedSize,
+        Components.Crop,
         Components.Depth,
         Components.Flip,
         Components.GetBounds,
+        Components.Mask,
         Components.Origin,
         Components.Pipeline,
-        Components.ScaleMode,
         Components.ScrollFactor,
         Components.Tint,
         Components.Transform,
@@ -74,9 +114,18 @@ var Text = new Class({
 
         GameObject.call(this, scene, 'Text');
 
+        /**
+         * The renderer in use by this Text object.
+         *
+         * @name Phaser.GameObjects.Text#renderer
+         * @type {(Phaser.Renderer.Canvas.CanvasRenderer|Phaser.Renderer.WebGL.WebGLRenderer)}
+         * @since 3.12.0
+         */
+        this.renderer = scene.sys.game.renderer;
+
         this.setPosition(x, y);
         this.setOrigin(0, 0);
-        this.initPipeline('TextureTintPipeline');
+        this.initPipeline();
 
         /**
          * The canvas element that the text is rendered to.
@@ -97,16 +146,18 @@ var Text = new Class({
         this.context = this.canvas.getContext('2d');
 
         /**
-         * [description]
+         * The Text Style object.
+         *
+         * Manages the style of this Text object.
          *
          * @name Phaser.GameObjects.Text#style
-         * @type {Phaser.GameObjects.Components.TextStyle}
+         * @type {Phaser.GameObjects.TextStyle}
          * @since 3.0.0
          */
         this.style = new TextStyle(this, style);
 
         /**
-         * [description]
+         * Whether to automatically round line positions.
          *
          * @name Phaser.GameObjects.Text#autoRound
          * @type {boolean}
@@ -127,23 +178,14 @@ var Text = new Class({
         this.splitRegExp = /(?:\r\n|\r|\n)/;
 
         /**
-         * [description]
+         * The text to display.
          *
-         * @name Phaser.GameObjects.Text#text
+         * @name Phaser.GameObjects.Text#_text
          * @type {string}
-         * @since 3.0.0
+         * @private
+         * @since 3.12.0
          */
-        this.text = '';
-
-        /**
-         * [description]
-         *
-         * @name Phaser.GameObjects.Text#resolution
-         * @type {number}
-         * @default 1
-         * @since 3.0.0
-         */
-        this.resolution = 1;
+        this._text = undefined;
 
         /**
          * Specify a padding value which is added to the line width and height when calculating the Text size.
@@ -156,7 +198,7 @@ var Text = new Class({
         this.padding = { left: 0, right: 0, top: 0, bottom: 0 };
 
         /**
-         * [description]
+         * The width of this Text object.
          *
          * @name Phaser.GameObjects.Text#width
          * @type {number}
@@ -166,7 +208,7 @@ var Text = new Class({
         this.width = 1;
 
         /**
-         * [description]
+         * The height of this Text object.
          *
          * @name Phaser.GameObjects.Text#height
          * @type {number}
@@ -176,17 +218,21 @@ var Text = new Class({
         this.height = 1;
 
         /**
-         * [description]
+         * The line spacing value.
+         * This value is added to the font height to calculate the overall line height.
+         * Only has an effect if this Text object contains multiple lines of text.
+         * 
+         * If you update this property directly, instead of using the `setLineSpacing` method, then
+         * be sure to call `updateText` after, or you won't see the change reflected in the Text object.
          *
-         * @name Phaser.GameObjects.Text#canvasTexture
-         * @type {HTMLCanvasElement}
-         * @default null
-         * @since 3.0.0
+         * @name Phaser.GameObjects.Text#lineSpacing
+         * @type {number}
+         * @since 3.13.0
          */
-        this.canvasTexture = null;
+        this.lineSpacing = 0;
 
         /**
-         * [description]
+         * Whether the text or its settings have changed and need updating.
          *
          * @name Phaser.GameObjects.Text#dirty
          * @type {boolean}
@@ -195,7 +241,42 @@ var Text = new Class({
          */
         this.dirty = false;
 
+        //  If resolution wasn't set, then we get it from the game config
+        if (this.style.resolution === 0)
+        {
+            this.style.resolution = scene.sys.game.config.resolution;
+        }
+
+        /**
+         * The internal crop data object, as used by `setCrop` and passed to the `Frame.setCropUVs` method.
+         *
+         * @name Phaser.GameObjects.Text#_crop
+         * @type {object}
+         * @private
+         * @since 3.12.0
+         */
+        this._crop = this.resetCropObject();
+
+        //  Create a Texture for this Text object
+        this.texture = scene.sys.textures.addCanvas(null, this.canvas, true);
+
+        //  Get the frame
+        this.frame = this.texture.get();
+
+        //  Set the resolution
+        this.frame.source.resolution = this.style.resolution;
+
+        if (this.renderer && this.renderer.gl)
+        {
+            //  Clear the default 1x1 glTexture, as we override it later
+            this.renderer.deleteTexture(this.frame.source.glTexture);
+
+            this.frame.source.glTexture = null;
+        }
+
         this.initRTL();
+
+        this.setText(text);
 
         if (style && style.padding)
         {
@@ -204,23 +285,17 @@ var Text = new Class({
 
         if (style && style.lineSpacing)
         {
-            this._lineSpacing = style.lineSpacing;
+            this.lineSpacing = style.lineSpacing;
         }
 
-        this.setText(text);
-
-        if (scene.sys.game.config.renderType === CONST.WEBGL)
+        scene.sys.game.events.on(GameEvents.CONTEXT_RESTORED, function ()
         {
-            scene.sys.game.renderer.onContextRestored(function ()
-            {
-                this.canvasTexture = null;
-                this.dirty = true;
-            }, this);
-        }
+            this.dirty = true;
+        }, this);
     },
 
     /**
-     * [description]
+     * Initialize right to left text.
      *
      * @method Phaser.GameObjects.Text#initRTL
      * @since 3.0.0
@@ -304,8 +379,8 @@ var Text = new Class({
      * @since 3.0.0
      *
      * @param {string} text - The text to perform word wrap detection against.
-     * @param {CanvasRenderingContext2D} context - [description]
-     * @param {number} wordWrapWidth - [description]
+     * @param {CanvasRenderingContext2D} context - The Canvas Rendering Context.
+     * @param {number} wordWrapWidth - The word wrap width.
      *
      * @return {string} The wrapped text.
      */
@@ -424,8 +499,8 @@ var Text = new Class({
      * @since 3.0.0
      *
      * @param {string} text - The text to perform word wrap detection against.
-     * @param {CanvasRenderingContext2D} context - [description]
-     * @param {number} wordWrapWidth - [description]
+     * @param {CanvasRenderingContext2D} context - The Canvas Rendering Context.
+     * @param {number} wordWrapWidth - The word wrap width.
      *
      * @return {string} The wrapped text.
      */
@@ -452,13 +527,19 @@ var Text = new Class({
                     {
                         result += '\n';
                     }
+
                     result += words[j] + ' ';
-                    spaceLeft = wordWrapWidth - wordWidth;
+                    spaceLeft = wordWrapWidth - wordWidthWithSpace;
                 }
                 else
                 {
                     spaceLeft -= wordWidthWithSpace;
-                    result += words[j] + ' ';
+                    result += words[j];
+
+                    if (j < (words.length - 1))
+                    {
+                        result += ' ';
+                    }
                 }
             }
 
@@ -484,7 +565,7 @@ var Text = new Class({
      */
     getWrappedText: function (text)
     {
-        if (text === undefined) { text = this.text; }
+        if (text === undefined) { text = this._text; }
 
         this.style.syncFont(this.canvas, this.context);
 
@@ -494,12 +575,14 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Set the text to display.
+     *
+     * An array of strings will be joined with `\n` line breaks.
      *
      * @method Phaser.GameObjects.Text#setText
      * @since 3.0.0
      *
-     * @param {string|string[]} value - The string, or array of strings, to be set as the content of this Text object.
+     * @param {(string|string[])} value - The string, or array of strings, to be set as the content of this Text object.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -515,9 +598,9 @@ var Text = new Class({
             value = value.join('\n');
         }
 
-        if (value !== this.text)
+        if (value !== this._text)
         {
-            this.text = value.toString();
+            this._text = value.toString();
 
             this.updateText();
         }
@@ -526,12 +609,21 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Set the text style.
+     *
+     * @example
+     * text.setStyle({
+     *     fontSize: '64px',
+     *     fontFamily: 'Arial',
+     *     color: '#ffffff',
+     *     align: 'center',
+     *     backgroundColor: '#ff00ff'
+     * });
      *
      * @method Phaser.GameObjects.Text#setStyle
      * @since 3.0.0
      *
-     * @param {object} style - [description]
+     * @param {object} style - The style settings to set.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -541,12 +633,31 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Set the font.
+     *
+     * If a string is given, the font family is set.
+     *
+     * If an object is given, the `fontFamily`, `fontSize` and `fontStyle`
+     * properties of that object are set.
+     * 
+     * **Important:** If the font you wish to use has a space or digit in its name, such as
+     * 'Press Start 2P' or 'Roboto Condensed', then you _must_ put the font name in quotes:
+     * 
+     * ```javascript
+     * Text.setFont('"Roboto Condensed"');
+     * ```
+     * 
+     * Equally, if you wish to provide a list of fallback fonts, then you should ensure they are all
+     * quoted properly, too:
+     * 
+     * ```javascript
+     * Text.setFont('Verdana, "Times New Roman", Tahoma, serif');
+     * ```
      *
      * @method Phaser.GameObjects.Text#setFont
      * @since 3.0.0
      *
-     * @param {string} font - [description]
+     * @param {string} font - The font family or font settings to set.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -556,12 +667,26 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Set the font family.
+     * 
+     * **Important:** If the font you wish to use has a space or digit in its name, such as
+     * 'Press Start 2P' or 'Roboto Condensed', then you _must_ put the font name in quotes:
+     * 
+     * ```javascript
+     * Text.setFont('"Roboto Condensed"');
+     * ```
+     * 
+     * Equally, if you wish to provide a list of fallback fonts, then you should ensure they are all
+     * quoted properly, too:
+     * 
+     * ```javascript
+     * Text.setFont('Verdana, "Times New Roman", Tahoma, serif');
+     * ```
      *
      * @method Phaser.GameObjects.Text#setFontFamily
      * @since 3.0.0
      *
-     * @param {string} family - [description]
+     * @param {string} family - The font family.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -571,12 +696,12 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Set the font size.
      *
      * @method Phaser.GameObjects.Text#setFontSize
      * @since 3.0.0
      *
-     * @param {number} size - [description]
+     * @param {number} size - The font size.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -586,12 +711,12 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Set the font style.
      *
      * @method Phaser.GameObjects.Text#setFontStyle
      * @since 3.0.0
      *
-     * @param {string} style - [description]
+     * @param {string} style - The font style.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -601,13 +726,15 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Set a fixed width and height for the text.
+     *
+     * Pass in `0` for either of these parameters to disable fixed width or height respectively.
      *
      * @method Phaser.GameObjects.Text#setFixedSize
      * @since 3.0.0
      *
-     * @param {number} width - [description]
-     * @param {number} height - [description]
+     * @param {number} width - The fixed width to set. `0` disables fixed width.
+     * @param {number} height - The fixed height to set. `0` disables fixed height.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -617,12 +744,12 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Set the background color.
      *
      * @method Phaser.GameObjects.Text#setBackgroundColor
      * @since 3.0.0
      *
-     * @param {string} color - [description]
+     * @param {string} color - The background color.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -632,27 +759,32 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Set the fill style to be used by the Text object.
+     *
+     * This can be any valid CanvasRenderingContext2D fillStyle value, such as
+     * a color (in hex, rgb, rgba, hsl or named values), a gradient or a pattern.
+     *
+     * See the [MDN fillStyle docs](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/fillStyle) for more details.
      *
      * @method Phaser.GameObjects.Text#setFill
      * @since 3.0.0
      *
-     * @param {string} color - [description]
+     * @param {(string|any)} color - The text fill style. Can be any valid CanvasRenderingContext `fillStyle` value.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
-    setFill: function (color)
+    setFill: function (fillStyle)
     {
-        return this.style.setFill(color);
+        return this.style.setFill(fillStyle);
     },
 
     /**
-     * [description]
+     * Set the text fill color.
      *
      * @method Phaser.GameObjects.Text#setColor
      * @since 3.0.0
      *
-     * @param {string} color - [description]
+     * @param {string} color - The text fill color.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -662,13 +794,13 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Set the stroke settings.
      *
      * @method Phaser.GameObjects.Text#setStroke
      * @since 3.0.0
      *
-     * @param {string} color - [description]
-     * @param {number} thickness - [description]
+     * @param {string} color - The stroke color.
+     * @param {number} thickness - The stroke thickness.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -678,17 +810,17 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Set the shadow settings.
      *
      * @method Phaser.GameObjects.Text#setShadow
      * @since 3.0.0
      *
-     * @param {number} x - [description]
-     * @param {number} y - [description]
-     * @param {string} color - [description]
-     * @param {number} blur - [description]
-     * @param {boolean} shadowStroke - [description]
-     * @param {boolean} shadowFill - [description]
+     * @param {number} [x=0] - The horizontal shadow offset.
+     * @param {number} [y=0] - The vertical shadow offset.
+     * @param {string} [color='#000'] - The shadow color.
+     * @param {number} [blur=0] - The shadow blur radius.
+     * @param {boolean} [shadowStroke=false] - Whether to stroke the shadow.
+     * @param {boolean} [shadowFill=true] - Whether to fill the shadow.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -698,13 +830,13 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Set the shadow offset.
      *
      * @method Phaser.GameObjects.Text#setShadowOffset
      * @since 3.0.0
      *
-     * @param {number} x - [description]
-     * @param {number} y - [description]
+     * @param {number} x - The horizontal shadow offset.
+     * @param {number} y - The vertical shadow offset.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -714,12 +846,12 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Set the shadow color.
      *
      * @method Phaser.GameObjects.Text#setShadowColor
      * @since 3.0.0
      *
-     * @param {string} color - [description]
+     * @param {string} color - The shadow color.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -729,12 +861,12 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Set the shadow blur radius.
      *
      * @method Phaser.GameObjects.Text#setShadowBlur
      * @since 3.0.0
      *
-     * @param {number} blur - [description]
+     * @param {number} blur - The shadow blur radius.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -744,12 +876,12 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Enable or disable shadow stroke.
      *
      * @method Phaser.GameObjects.Text#setShadowStroke
      * @since 3.0.0
      *
-     * @param {boolean} enabled - [description]
+     * @param {boolean} enabled - Whether shadow stroke is enabled or not.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -759,12 +891,12 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Enable or disable shadow fill.
      *
      * @method Phaser.GameObjects.Text#setShadowFill
      * @since 3.0.0
      *
-     * @param {boolean} enabled - [description]
+     * @param {boolean} enabled - Whether shadow fill is enabled or not.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -779,7 +911,7 @@ var Text = new Class({
      * @method Phaser.GameObjects.Text#setWordWrapWidth
      * @since 3.0.0
      *
-     * @param {number|null} width - The maximum width of a line in pixels. Set to null to remove wrapping.
+     * @param {?number} width - The maximum width of a line in pixels. Set to null to remove wrapping.
      * @param {boolean} [useAdvancedWrap=false] - Whether or not to use the advanced wrapping
      * algorithm. If true, spaces are collapsed and whitespace is trimmed from lines. If false,
      * spaces and whitespace are left as is.
@@ -811,12 +943,16 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Set the alignment of the text in this Text object.
+     * 
+     * The argument can be one of: `left`, `right`, `center` or `justify`.
+     * 
+     * Alignment only works if the Text object has more than one line of text.
      *
      * @method Phaser.GameObjects.Text#setAlign
      * @since 3.0.0
      *
-     * @param {string} align - [description]
+     * @param {string} [align='left'] - The text alignment for multi-line text.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -826,16 +962,62 @@ var Text = new Class({
     },
 
     /**
+     * Set the resolution used by this Text object.
+     *
+     * By default it will be set to match the resolution set in the Game Config,
+     * but you can override it via this method, or by specifying it in the Text style configuration object.
+     * 
+     * It allows for much clearer text on High DPI devices, at the cost of memory because it uses larger
+     * internal Canvas textures for the Text.
+     * 
+     * Therefore, please use with caution, as the more high res Text you have, the more memory it uses.
+     *
+     * @method Phaser.GameObjects.Text#setResolution
+     * @since 3.12.0
+     *
+     * @param {number} value - The resolution for this Text object to use.
+     *
+     * @return {Phaser.GameObjects.Text} This Text object.
+     */
+    setResolution: function (value)
+    {
+        return this.style.setResolution(value);
+    },
+
+    /**
+     * Sets the line spacing value.
+     *
+     * This value is _added_ to the height of the font when calculating the overall line height.
+     * This only has an effect if this Text object consists of multiple lines of text.
+     *
+     * @method Phaser.GameObjects.Text#setLineSpacing
+     * @since 3.13.0
+     *
+     * @param {number} value - The amount to add to the font height to achieve the overall line height.
+     *
+     * @return {Phaser.GameObjects.Text} This Text object.
+     */
+    setLineSpacing: function (value)
+    {
+        this.lineSpacing = value;
+
+        return this.updateText();
+    },
+
+    /**
+     * Set the text padding.
+     *
      * 'left' can be an object.
-     * If only 'left' and 'top' are given they are treated as 'x' and 'y'
+     *
+     * If only 'left' and 'top' are given they are treated as 'x' and 'y'.
      *
      * @method Phaser.GameObjects.Text#setPadding
      * @since 3.0.0
      *
-     * @param {number|object} left - [description]
-     * @param {number} top - [description]
-     * @param {number} right - [description]
-     * @param {number} bottom - [description]
+     * @param {(number|Phaser.Types.GameObjects.Text.TextPadding)} left - The left padding value, or a padding config object.
+     * @param {number} top - The top padding value.
+     * @param {number} right - The right padding value.
+     * @param {number} bottom - The bottom padding value.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -889,12 +1071,12 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Set the maximum number of lines to draw.
      *
      * @method Phaser.GameObjects.Text#setMaxLines
      * @since 3.0.0
      *
-     * @param {integer} [max=0] - [description]
+     * @param {integer} [max=0] - The maximum number of lines to draw.
      *
      * @return {Phaser.GameObjects.Text} This Text object.
      */
@@ -904,7 +1086,7 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Update the displayed text.
      *
      * @method Phaser.GameObjects.Text#updateText
      * @since 3.0.0
@@ -916,16 +1098,16 @@ var Text = new Class({
         var canvas = this.canvas;
         var context = this.context;
         var style = this.style;
-        var resolution = this.resolution;
+        var resolution = style.resolution;
         var size = style.metrics;
 
         style.syncFont(canvas, context);
 
-        var outputText = this.text;
+        var outputText = this._text;
 
         if (style.wordWrapWidth || style.wordWrapCallback)
         {
-            outputText = this.runWordWrap(this.text);
+            outputText = this.runWordWrap(this._text);
         }
 
         //  Split text into lines
@@ -935,18 +1117,37 @@ var Text = new Class({
 
         var padding = this.padding;
 
-        var w = textSize.width + padding.left + padding.right;
-        var h = textSize.height + padding.top + padding.bottom;
+        var textWidth;
 
         if (style.fixedWidth === 0)
         {
-            this.width = w;
+            this.width = textSize.width + padding.left + padding.right;
+
+            textWidth = textSize.width;
+        }
+        else
+        {
+            this.width = style.fixedWidth;
+
+            textWidth = this.width - padding.left - padding.right;
+
+            if (textWidth < textSize.width)
+            {
+                textWidth = textSize.width;
+            }
         }
 
         if (style.fixedHeight === 0)
         {
-            this.height = h;
+            this.height = textSize.height + padding.top + padding.bottom;
         }
+        else
+        {
+            this.height = style.fixedHeight;
+        }
+
+        var w = this.width;
+        var h = this.height;
 
         this.updateDisplayOrigin();
 
@@ -960,7 +1161,11 @@ var Text = new Class({
         {
             canvas.width = w;
             canvas.height = h;
-            style.syncFont(canvas, context); // Resizing resets the context
+
+            this.frame.setSize(w, h);
+
+            //  Because resizing the canvas resets the context
+            style.syncFont(canvas, context);
         }
         else
         {
@@ -969,7 +1174,7 @@ var Text = new Class({
 
         context.save();
 
-        // context.scale(resolution, resolution);
+        context.scale(resolution, resolution);
 
         if (style.backgroundColor)
         {
@@ -1004,11 +1209,38 @@ var Text = new Class({
             }
             else if (style.align === 'right')
             {
-                linePositionX += textSize.width - textSize.lineWidths[i];
+                linePositionX += textWidth - textSize.lineWidths[i];
             }
             else if (style.align === 'center')
             {
-                linePositionX += (textSize.width - textSize.lineWidths[i]) / 2;
+                linePositionX += (textWidth - textSize.lineWidths[i]) / 2;
+            }
+            else if (style.align === 'justify')
+            {
+                //  To justify text line its width must be no less than 85% of defined width
+                var minimumLengthToApplyJustification = 0.85;
+
+                if (textSize.lineWidths[i] / textSize.width >= minimumLengthToApplyJustification)
+                {
+                    var extraSpace = textSize.width - textSize.lineWidths[i];
+                    var spaceSize = context.measureText(' ').width;
+                    var trimmedLine = lines[i].trim();
+                    var array = trimmedLine.split(' ');
+            
+                    extraSpace += (lines[i].length - trimmedLine.length) * spaceSize;
+            
+                    var extraSpaceCharacters = Math.floor(extraSpace / spaceSize);
+                    var idx = 0;
+
+                    while (extraSpaceCharacters > 0)
+                    {
+                        array[idx] += ' ';
+                        idx = (idx + 1) % (array.length - 1 || 1);
+                        --extraSpaceCharacters;
+                    }
+            
+                    lines[i] = array.join(' ');
+                }
             }
 
             if (this.autoRound)
@@ -1034,18 +1266,33 @@ var Text = new Class({
 
         context.restore();
 
+        if (this.renderer.gl)
+        {
+            this.frame.source.glTexture = this.renderer.canvasToTexture(canvas, this.frame.source.glTexture, true);
+
+            this.frame.glTexture = this.frame.source.glTexture;
+        }
+
         this.dirty = true;
+
+        var input = this.input;
+
+        if (input && !input.customHitArea)
+        {
+            input.hitArea.width = this.width;
+            input.hitArea.height = this.height;
+        }
 
         return this;
     },
 
     /**
-     * [description]
+     * Get the current text metrics.
      *
      * @method Phaser.GameObjects.Text#getTextMetrics
      * @since 3.0.0
      *
-     * @return {object} [description]
+     * @return {object} The text metrics.
      */
     getTextMetrics: function ()
     {
@@ -1053,12 +1300,33 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * The text string being rendered by this Text Game Object.
+     *
+     * @name Phaser.GameObjects.Text#text
+     * @type {string}
+     * @since 3.0.0
+     */
+    text: {
+
+        get: function ()
+        {
+            return this._text;
+        },
+
+        set: function (value)
+        {
+            this.setText(value);
+        }
+
+    },
+
+    /**
+     * Build a JSON representation of the Text object.
      *
      * @method Phaser.GameObjects.Text#toJSON
      * @since 3.0.0
      *
-     * @return {object} [description]
+     * @return {Phaser.Types.GameObjects.JSONGameObject} A JSON representation of the Text object.
      */
     toJSON: function ()
     {
@@ -1068,9 +1336,8 @@ var Text = new Class({
 
         var data = {
             autoRound: this.autoRound,
-            text: this.text,
+            text: this._text,
             style: this.style.toJSON(),
-            resolution: this.resolution,
             padding: {
                 left: this.padding.left,
                 right: this.padding.right,
@@ -1085,9 +1352,10 @@ var Text = new Class({
     },
 
     /**
-     * [description]
+     * Internal destroy handler, called as part of the destroy process.
      *
      * @method Phaser.GameObjects.Text#preDestroy
+     * @protected
      * @since 3.0.0
      */
     preDestroy: function ()
@@ -1098,7 +1366,33 @@ var Text = new Class({
         }
 
         CanvasPool.remove(this.canvas);
+
+        this.texture.destroy();
     }
+
+    /**
+     * The horizontal origin of this Game Object.
+     * The origin maps the relationship between the size and position of the Game Object.
+     * The default value is 0.5, meaning all Game Objects are positioned based on their center.
+     * Setting the value to 0 means the position now relates to the left of the Game Object.
+     *
+     * @name Phaser.GameObjects.Text#originX
+     * @type {number}
+     * @default 0
+     * @since 3.0.0
+     */
+
+    /**
+     * The vertical origin of this Game Object.
+     * The origin maps the relationship between the size and position of the Game Object.
+     * The default value is 0.5, meaning all Game Objects are positioned based on their center.
+     * Setting the value to 0 means the position now relates to the top of the Game Object.
+     *
+     * @name Phaser.GameObjects.Text#originY
+     * @type {number}
+     * @default 0
+     * @since 3.0.0
+     */
 
 });
 

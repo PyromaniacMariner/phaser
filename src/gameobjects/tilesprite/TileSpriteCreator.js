@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var BuildGameObject = require('../BuildGameObject');
@@ -17,12 +17,15 @@ var TileSprite = require('./TileSprite');
  * @method Phaser.GameObjects.GameObjectCreator#tileSprite
  * @since 3.0.0
  *
- * @param {object} config - [description]
+ * @param {Phaser.Types.GameObjects.TileSprite.TileSpriteConfig} config - The configuration object this Game Object will use to create itself.
+ * @param {boolean} [addToScene] - Add this Game Object to the Scene after creating it? If set this argument overrides the `add` property in the config object.
  *
  * @return {Phaser.GameObjects.TileSprite} The Game Object that was created.
  */
-GameObjectCreator.register('tileSprite', function (config)
+GameObjectCreator.register('tileSprite', function (config, addToScene)
 {
+    if (config === undefined) { config = {}; }
+
     var x = GetAdvancedValue(config, 'x', 0);
     var y = GetAdvancedValue(config, 'y', 0);
     var width = GetAdvancedValue(config, 'width', 512);
@@ -32,9 +35,12 @@ GameObjectCreator.register('tileSprite', function (config)
 
     var tile = new TileSprite(this.scene, x, y, width, height, key, frame);
 
+    if (addToScene !== undefined)
+    {
+        config.add = addToScene;
+    }
+
     BuildGameObject(this.scene, tile, config);
 
     return tile;
 });
-
-//  When registering a factory function 'this' refers to the GameObjectCreator context.

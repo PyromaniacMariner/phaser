@@ -1,11 +1,11 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 /**
- * [description]
+ * Calculates a Catmull-Rom value.
  *
  * @function Phaser.Math.CatmullRom
  * @since 3.0.0
@@ -16,7 +16,7 @@
  * @param {number} p2 - [description]
  * @param {number} p3 - [description]
  *
- * @return {number} [description]
+ * @return {number} The Catmull-Rom value.
  */
 var CatmullRom = function (t, p0, p1, p2, p3)
 {

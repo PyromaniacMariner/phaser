@@ -1,10 +1,11 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Rectangle = require('./Rectangle');
+var MATH_CONST = require('../../math/const');
 
 //  points is an array of Point-like objects,
 //  either 2 dimensional arrays, or objects with public x/y properties:
@@ -15,15 +16,17 @@ var Rectangle = require('./Rectangle');
 //  ]
 
 /**
- * [description]
+ * Constructs new Rectangle or repositions and resizes an existing Rectangle so that all of the given points are on or within its bounds.
  *
  * @function Phaser.Geom.Rectangle.FromPoints
  * @since 3.0.0
  *
- * @param {array} points - [description]
- * @param {Phaser.Geom.Rectangle} out - [description]
+ * @generic {Phaser.Geom.Rectangle} O - [out,$return]
  *
- * @return {Phaser.Geom.Rectangle} [description]
+ * @param {array} points - An array of points (either arrays with two elements corresponding to the X and Y coordinate or an object with public `x` and `y` properties) which should be surrounded by the Rectangle.
+ * @param {Phaser.Geom.Rectangle} [out] - Optional Rectangle to adjust.
+ *
+ * @return {Phaser.Geom.Rectangle} The adjusted `out` Rectangle, or a new Rectangle if none was provided.
  */
 var FromPoints = function (points, out)
 {
@@ -37,8 +40,8 @@ var FromPoints = function (points, out)
     var minX = Number.MAX_VALUE;
     var minY = Number.MAX_VALUE;
 
-    var maxX = Number.MIN_SAFE_INTEGER;
-    var maxY = Number.MIN_SAFE_INTEGER;
+    var maxX = MATH_CONST.MIN_SAFE_INTEGER;
+    var maxY = MATH_CONST.MIN_SAFE_INTEGER;
 
     var p;
     var px;

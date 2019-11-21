@@ -1,17 +1,16 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 /**
  * XBox 360 Gamepad Configuration.
- * 
+ *
  * @name Phaser.Input.Gamepad.Configs.XBOX_360
  * @type {object}
  * @since 3.0.0
  */
-
 module.exports = {
 
     UP: 12,

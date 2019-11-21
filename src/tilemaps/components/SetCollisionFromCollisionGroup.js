@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var SetTileCollision = require('./SetTileCollision');
@@ -14,12 +14,11 @@ var CalculateFacesWithin = require('./CalculateFacesWithin');
  * controls if collision will be enabled (true) or disabled (false).
  *
  * @function Phaser.Tilemaps.Components.SetCollisionFromCollisionGroup
+ * @private
  * @since 3.0.0
  *
- * @param {boolean} [collides=true] - If true it will enable collision. If false it will clear
- * collision.
- * @param {boolean} [recalculateFaces=true] - Whether or not to recalculate the tile faces after the
- * update.
+ * @param {boolean} [collides=true] - If true it will enable collision. If false it will clear collision.
+ * @param {boolean} [recalculateFaces=true] - Whether or not to recalculate the tile faces after the update.
  * @param {Phaser.Tilemaps.LayerData} layer - The Tilemap Layer to act upon.
  */
 var SetCollisionFromCollisionGroup = function (collides, recalculateFaces, layer)
@@ -46,7 +45,10 @@ var SetCollisionFromCollisionGroup = function (collides, recalculateFaces, layer
         }
     }
 
-    if (recalculateFaces) { CalculateFacesWithin(0, 0, layer.width, layer.height, layer); }
+    if (recalculateFaces)
+    {
+        CalculateFacesWithin(0, 0, layer.width, layer.height, layer);
+    }
 };
 
 module.exports = SetCollisionFromCollisionGroup;

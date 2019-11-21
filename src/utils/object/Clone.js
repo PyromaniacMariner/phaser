@@ -1,18 +1,18 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 /**
  * Shallow Object Clone. Will not clone nested objects.
  *
- * @function Phaser.Utils.Object.Clone
+ * @function Phaser.Utils.Objects.Clone
  * @since 3.0.0
  *
- * @param {object} obj - [description]
+ * @param {object} obj - the object from which to clone
  *
- * @return {object} [description]
+ * @return {object} a new object with the same properties as the input obj
  */
 var Clone = function (obj)
 {

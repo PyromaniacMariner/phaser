@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Circle = require('./Circle');
@@ -12,7 +12,7 @@ var Circle = require('./Circle');
  * @function Phaser.Geom.Circle.Clone
  * @since 3.0.0
  *
- * @param {Phaser.Geom.Circle|object} source - The Circle to be cloned. Can be an instance of a Circle or a circle-like object, with x, y and radius properties.
+ * @param {(Phaser.Geom.Circle|object)} source - The Circle to be cloned. Can be an instance of a Circle or a circle-like object, with x, y and radius properties.
  *
  * @return {Phaser.Geom.Circle} A clone of the source Circle.
  */

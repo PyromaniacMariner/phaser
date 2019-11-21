@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Formats = require('../../Formats');
@@ -28,7 +28,7 @@ var AssignTileProperties = require('./AssignTileProperties');
  * consumption. However if your map is small or you need to update the tiles dynamically, then leave
  * the default value set.
  *
- * @return {Phaser.Tilemaps.MapData|null} [description]
+ * @return {?Phaser.Tilemaps.MapData} The created MapData object, or `null` if the data can't be parsed.
  */
 var ParseJSONTiled = function (name, json, insertNull)
 {
@@ -48,7 +48,9 @@ var ParseJSONTiled = function (name, json, insertNull)
         orientation: json.orientation,
         format: Formats.TILED_JSON,
         version: json.version,
-        properties: json.properties
+        properties: json.properties,
+        renderOrder: json.renderorder,
+        infinite: json.infinite
     });
 
     mapData.layers = ParseTileLayers(json, insertNull);

@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Contains = require('./Contains');
@@ -13,7 +13,7 @@ var Contains = require('./Contains');
  * @since 3.0.0
  *
  * @param {Phaser.Geom.Circle} circle - The Circle to check.
- * @param {Phaser.Geom.Rectangle|object} rect - The Rectangle object to check if it's within the Circle or not.
+ * @param {(Phaser.Geom.Rectangle|object)} rect - The Rectangle object to check if it's within the Circle or not.
  *
  * @return {boolean} True if all of the Rectangle coordinates are within the circle, otherwise false.
  */

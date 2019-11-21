@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var BuildGameObject = require('../BuildGameObject');
@@ -17,17 +17,28 @@ var RenderTexture = require('./RenderTexture');
  * @method Phaser.GameObjects.GameObjectCreator#renderTexture
  * @since 3.2.0
  *
- * @param {object} config - [description]
+ * @param {Phaser.Types.GameObjects.RenderTexture.RenderTextureConfig} config - The configuration object this Game Object will use to create itself.
+ * @param {boolean} [addToScene] - Add this Game Object to the Scene after creating it? If set this argument overrides the `add` property in the config object.
  *
  * @return {Phaser.GameObjects.RenderTexture} The Game Object that was created.
  */
-GameObjectCreator.register('renderTexture', function (config)
+GameObjectCreator.register('renderTexture', function (config, addToScene)
 {
+    if (config === undefined) { config = {}; }
+
     var x = GetAdvancedValue(config, 'x', 0);
     var y = GetAdvancedValue(config, 'y', 0);
     var width = GetAdvancedValue(config, 'width', 32);
     var height = GetAdvancedValue(config, 'height', 32);
-    var renderTexture = new RenderTexture(this.scene, x, y, width, height);
+    var key = GetAdvancedValue(config, 'key', undefined);
+    var frame = GetAdvancedValue(config, 'frame', undefined);
+
+    var renderTexture = new RenderTexture(this.scene, x, y, width, height, key, frame);
+
+    if (addToScene !== undefined)
+    {
+        config.add = addToScene;
+    }
 
     BuildGameObject(this.scene, renderTexture, config);
 

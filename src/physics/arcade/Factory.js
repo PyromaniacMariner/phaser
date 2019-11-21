@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var ArcadeImage = require('./ArcadeImage');
@@ -17,7 +17,7 @@ var StaticPhysicsGroup = require('./StaticPhysicsGroup');
  * Objects that are created by this Factory are automatically added to the physics world.
  *
  * @class Factory
- * @memberOf Phaser.Physics.Arcade
+ * @memberof Phaser.Physics.Arcade
  * @constructor
  * @since 3.0.0
  *
@@ -58,16 +58,16 @@ var Factory = new Class({
     },
 
     /**
-     * Create a new Arcade Physics Collider object.
+     * Creates a new Arcade Physics Collider object.
      *
      * @method Phaser.Physics.Arcade.Factory#collider
      * @since 3.0.0
      *
-     * @param {Phaser.Physics.Arcade.Body} object1 - The first object to check for collision.
-     * @param {Phaser.Physics.Arcade.Body} object2 - The second object to check for collision.
-     * @param {ArcadePhysicsCallback} collideCallback - The callback to invoke when the two objects collide.
-     * @param {ArcadePhysicsCallback} processCallback - The callback to invoke when the two objects collide. Must return a boolean.
-     * @param {object} callbackContext - The scope in which to call the callbacks.
+     * @param {(Phaser.GameObjects.GameObject|Phaser.GameObjects.GameObject[]|Phaser.GameObjects.Group|Phaser.GameObjects.Group[])} object1 - The first object to check for collision.
+     * @param {(Phaser.GameObjects.GameObject|Phaser.GameObjects.GameObject[]|Phaser.GameObjects.Group|Phaser.GameObjects.Group[])} object2 - The second object to check for collision.
+     * @param {ArcadePhysicsCallback} [collideCallback] - The callback to invoke when the two objects collide.
+     * @param {ArcadePhysicsCallback} [processCallback] - The callback to invoke when the two objects collide. Must return a boolean.
+     * @param {*} [callbackContext] - The scope in which to call the callbacks.
      *
      * @return {Phaser.Physics.Arcade.Collider} The Collider that was created.
      */
@@ -77,16 +77,16 @@ var Factory = new Class({
     },
 
     /**
-     * Create a new Arcade Physics Collider Overlap object.
+     * Creates a new Arcade Physics Collider Overlap object.
      *
      * @method Phaser.Physics.Arcade.Factory#overlap
      * @since 3.0.0
      *
-     * @param {Phaser.Physics.Arcade.Body} object1 - The first object to check for overlap.
-     * @param {Phaser.Physics.Arcade.Body} object2 - The second object to check for overlap.
-     * @param {ArcadePhysicsCallback} collideCallback - The callback to invoke when the two objects collide.
-     * @param {ArcadePhysicsCallback} processCallback - The callback to invoke when the two objects collide. Must return a boolean.
-     * @param {object} callbackContext - The scope in which to call the callbacks.
+     * @param {(Phaser.GameObjects.GameObject|Phaser.GameObjects.GameObject[]|Phaser.GameObjects.Group|Phaser.GameObjects.Group[])} object1 - The first object to check for overlap.
+     * @param {(Phaser.GameObjects.GameObject|Phaser.GameObjects.GameObject[]|Phaser.GameObjects.Group|Phaser.GameObjects.Group[])} object2 - The second object to check for overlap.
+     * @param {ArcadePhysicsCallback} [collideCallback] - The callback to invoke when the two objects collide.
+     * @param {ArcadePhysicsCallback} [processCallback] - The callback to invoke when the two objects collide. Must return a boolean.
+     * @param {*} [callbackContext] - The scope in which to call the callbacks.
      *
      * @return {Phaser.Physics.Arcade.Collider} The Collider that was created.
      */
@@ -101,8 +101,8 @@ var Factory = new Class({
      * @method Phaser.Physics.Arcade.Factory#existing
      * @since 3.0.0
      *
-     * @param {Phaser.GameObjects.GameObject} gameObject - [description]
-     * @param {boolean} [isStatic=false] - Set to true to create a Static body, otherwise it will create a Dynamic body.
+     * @param {Phaser.GameObjects.GameObject} gameObject - A Game Object.
+     * @param {boolean} [isStatic=false] - Create a Static body (true) or Dynamic body (false).
      *
      * @return {Phaser.GameObjects.GameObject} The Game Object.
      */
@@ -124,7 +124,7 @@ var Factory = new Class({
      * @param {number} x - The horizontal position of this Game Object in the world.
      * @param {number} y - The vertical position of this Game Object in the world.
      * @param {string} texture - The key of the Texture this Game Object will use to render with, as stored in the Texture Manager.
-     * @param {string|integer} [frame] - An optional frame from the Texture this Game Object is rendering with.
+     * @param {(string|integer)} [frame] - An optional frame from the Texture this Game Object is rendering with.
      *
      * @return {Phaser.Physics.Arcade.Image} The Image object that was created.
      */
@@ -148,7 +148,7 @@ var Factory = new Class({
      * @param {number} x - The horizontal position of this Game Object in the world.
      * @param {number} y - The vertical position of this Game Object in the world.
      * @param {string} texture - The key of the Texture this Game Object will use to render with, as stored in the Texture Manager.
-     * @param {string|integer} [frame] - An optional frame from the Texture this Game Object is rendering with.
+     * @param {(string|integer)} [frame] - An optional frame from the Texture this Game Object is rendering with.
      *
      * @return {Phaser.Physics.Arcade.Image} The Image object that was created.
      */
@@ -172,7 +172,7 @@ var Factory = new Class({
      * @param {number} x - The horizontal position of this Game Object in the world.
      * @param {number} y - The vertical position of this Game Object in the world.
      * @param {string} texture - The key of the Texture this Game Object will use to render with, as stored in the Texture Manager.
-     * @param {string|integer} [frame] - An optional frame from the Texture this Game Object is rendering with.
+     * @param {(string|integer)} [frame] - An optional frame from the Texture this Game Object is rendering with.
      *
      * @return {Phaser.Physics.Arcade.Sprite} The Sprite object that was created.
      */
@@ -196,8 +196,8 @@ var Factory = new Class({
      *
      * @param {number} x - The horizontal position of this Game Object in the world.
      * @param {number} y - The vertical position of this Game Object in the world.
-     * @param {string} texture - The key of the Texture this Game Object will use to render with, as stored in the Texture Manager.
-     * @param {string|integer} [frame] - An optional frame from the Texture this Game Object is rendering with.
+     * @param {string} key - The key of the Texture this Game Object will use to render with, as stored in the Texture Manager.
+     * @param {(string|integer)} [frame] - An optional frame from the Texture this Game Object is rendering with.
      *
      * @return {Phaser.Physics.Arcade.Sprite} The Sprite object that was created.
      */
@@ -220,8 +220,8 @@ var Factory = new Class({
      * @method Phaser.Physics.Arcade.Factory#staticGroup
      * @since 3.0.0
      *
-     * @param {array} [children] - [description]
-     * @param {object} [config] - [description]
+     * @param {(Phaser.GameObjects.GameObject[]|Phaser.Types.GameObjects.Group.GroupConfig|Phaser.Types.GameObjects.Group.GroupCreateConfig)} [children] - Game Objects to add to this group; or the `config` argument.
+     * @param {Phaser.Types.GameObjects.Group.GroupConfig|Phaser.Types.GameObjects.Group.GroupCreateConfig} [config] - Settings for this group.
      *
      * @return {Phaser.Physics.Arcade.StaticGroup} The Static Group object that was created.
      */
@@ -237,14 +237,27 @@ var Factory = new Class({
      * @method Phaser.Physics.Arcade.Factory#group
      * @since 3.0.0
      *
-     * @param {array} [children] - [description]
-     * @param {object} [config] - [description]
+     * @param {(Phaser.GameObjects.GameObject[]|Phaser.Types.Physics.Arcade.PhysicsGroupConfig|Phaser.Types.GameObjects.Group.GroupCreateConfig)} [children] - Game Objects to add to this group; or the `config` argument.
+     * @param {Phaser.Types.Physics.Arcade.PhysicsGroupConfig|Phaser.Types.GameObjects.Group.GroupCreateConfig} [config] - Settings for this group.
      *
      * @return {Phaser.Physics.Arcade.Group} The Group object that was created.
      */
     group: function (children, config)
     {
         return this.sys.updateList.add(new PhysicsGroup(this.world, this.world.scene, children, config));
+    },
+
+    /**
+     * Destroys this Factory.
+     *
+     * @method Phaser.Physics.Arcade.Factory#destroy
+     * @since 3.5.0
+     */
+    destroy: function ()
+    {
+        this.world = null;
+        this.scene = null;
+        this.sys = null;
     }
 
 });

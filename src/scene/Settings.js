@@ -1,25 +1,30 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var CONST = require('./const');
 var GetValue = require('../utils/object/GetValue');
+var Merge = require('../utils/object/Merge');
 var InjectionMap = require('./InjectionMap');
 
 /**
- * Takes a Scene configuration object and returns a fully formed Systems object.
- *
- * @function Phaser.Scenes.Settings.create
- * @since 3.0.0
- *
- * @param {object} config - [description]
- *
- * @return {object} [description]
+ * @namespace Phaser.Scenes.Settings
  */
+
 var Settings = {
 
+    /**
+     * Takes a Scene configuration object and returns a fully formed System Settings object.
+     *
+     * @function Phaser.Scenes.Settings.create
+     * @since 3.0.0
+     *
+     * @param {(string|Phaser.Types.Scenes.SettingsConfig)} config - The Scene configuration object used to create this Scene Settings.
+     *
+     * @return {Phaser.Types.Scenes.SettingsObject} The Scene Settings object created as a result of the config and default settings.
+     */
     create: function (config)
     {
         if (typeof config === 'string')
@@ -42,11 +47,16 @@ var Settings = {
 
             isBooted: false,
 
+            isTransition: false,
+            transitionFrom: null,
+            transitionDuration: 0,
+            transitionAllowInput: true,
+
             //  Loader payload array
 
             data: {},
 
-            files: GetValue(config, 'files', false),
+            pack: GetValue(config, 'pack', false),
 
             //  Cameras
 
@@ -54,7 +64,7 @@ var Settings = {
 
             //  Scene Property Injection Map
 
-            map: GetValue(config, 'map', InjectionMap),
+            map: GetValue(config, 'map', Merge(InjectionMap, GetValue(config, 'mapAdd', {}))),
 
             //  Physics
 
@@ -66,7 +76,11 @@ var Settings = {
 
             //  Plugins
 
-            plugins: GetValue(config, 'plugins', false)
+            plugins: GetValue(config, 'plugins', false),
+
+            //  Input
+
+            input: GetValue(config, 'input', {})
 
         };
     }

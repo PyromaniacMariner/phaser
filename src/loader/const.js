@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var FILE_CONST = {
@@ -106,15 +106,6 @@ var FILE_CONST = {
     FILE_PROCESSING: 14,
 
     /**
-     * File is waiting for its linkfile to load.
-     * 
-     * @name Phaser.Loader.FILE_WAITING_LINKFILE
-     * @type {integer}
-     * @since 3.0.0
-     */
-    FILE_WAITING_LINKFILE: 15,
-
-    /**
      * The File has errored somehow during processing.
      * 
      * @name Phaser.Loader.FILE_ERRORED
@@ -148,25 +139,7 @@ var FILE_CONST = {
      * @type {integer}
      * @since 3.0.0
      */
-    FILE_POPULATED: 19,
-
-    /**
-     * A special Texture Atlas const.
-     * 
-     * @name Phaser.Loader.TEXTURE_ATLAS_JSON_ARRAY
-     * @type {integer}
-     * @since 3.0.0
-     */
-    TEXTURE_ATLAS_JSON_ARRAY: 20,
-
-    /**
-     * A special Texture Atlas const.
-     * 
-     * @name Phaser.Loader.TEXTURE_ATLAS_JSON_HASH
-     * @type {integer}
-     * @since 3.0.0
-     */
-    TEXTURE_ATLAS_JSON_HASH: 21
+    FILE_POPULATED: 19
 
 };
 

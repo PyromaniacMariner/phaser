@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Point = require('./Point');
@@ -12,6 +12,8 @@ var GetMagnitudeSq = require('./GetMagnitudeSq');
  *
  * @function Phaser.Geom.Point.Project
  * @since 3.0.0
+ *
+ * @generic {Phaser.Geom.Point} O - [out,$return]
  *
  * @param {Phaser.Geom.Point} pointA - [description]
  * @param {Phaser.Geom.Point} pointB - [description]

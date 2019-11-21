@@ -1,27 +1,41 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @author       Felipe Alfonso <@bitnenfer>
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../../../utils/Class');
+var Earcut = require('../../../geom/polygon/Earcut');
+var GetFastValue = require('../../../utils/object/GetFastValue');
 var ModelViewProjection = require('./components/ModelViewProjection');
-var ShaderSourceFS = require('../shaders/TextureTint.frag');
-var ShaderSourceVS = require('../shaders/TextureTint.vert');
+var ShaderSourceFS = require('../shaders/TextureTint-frag.js');
+var ShaderSourceVS = require('../shaders/TextureTint-vert.js');
+var TransformMatrix = require('../../../gameobjects/components/TransformMatrix');
 var Utils = require('../Utils');
 var WebGLPipeline = require('../WebGLPipeline');
 
 /**
  * @classdesc
- * [description]
+ * TextureTintPipeline implements the rendering infrastructure
+ * for displaying textured objects
+ * The config properties are:
+ * - game: Current game instance.
+ * - renderer: Current WebGL renderer.
+ * - topology: This indicates how the primitives are rendered. The default value is GL_TRIANGLES.
+ *              Here is the full list of rendering primitives (https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Constants).
+ * - vertShader: Source for vertex shader as a string.
+ * - fragShader: Source for fragment shader as a string.
+ * - vertexCapacity: The amount of vertices that shall be allocated
+ * - vertexSize: The size of a single vertex in bytes.
  *
  * @class TextureTintPipeline
  * @extends Phaser.Renderer.WebGL.WebGLPipeline
- * @memberOf Phaser.Renderer.WebGL
+ * @memberof Phaser.Renderer.WebGL.Pipelines
  * @constructor
  * @since 3.0.0
  *
- * @param {object} config - [description]
+ * @param {object} config - The configuration options for this Texture Tint Pipeline, as described above.
  */
 var TextureTintPipeline = new Class({
 
@@ -35,20 +49,19 @@ var TextureTintPipeline = new Class({
 
     function TextureTintPipeline (config)
     {
+        var rendererConfig = config.renderer.config;
+
+        //  Vertex Size = attribute size added together (2 + 2 + 1 + 4)
+
         WebGLPipeline.call(this, {
             game: config.game,
             renderer: config.renderer,
             gl: config.renderer.gl,
-            topology: (config.topology ? config.topology : config.renderer.gl.TRIANGLES),
-            vertShader: (config.vertShader ? config.vertShader : ShaderSourceVS),
-            fragShader: (config.fragShader ? config.fragShader : ShaderSourceFS),
-            vertexCapacity: (config.vertexCapacity ? config.vertexCapacity : 6 * 2000),
-
-            vertexSize: (config.vertexSize ? config.vertexSize :
-                Float32Array.BYTES_PER_ELEMENT * 2 +
-                Float32Array.BYTES_PER_ELEMENT * 2 +
-                Uint8Array.BYTES_PER_ELEMENT * 4),
-
+            topology: GetFastValue(config, 'topology', config.renderer.gl.TRIANGLES),
+            vertShader: GetFastValue(config, 'vertShader', ShaderSourceVS),
+            fragShader: GetFastValue(config, 'fragShader', ShaderSourceFS),
+            vertexCapacity: GetFastValue(config, 'vertexCapacity', 6 * rendererConfig.batchSize),
+            vertexSize: GetFastValue(config, 'vertexSize', Float32Array.BYTES_PER_ELEMENT * 5 + Uint8Array.BYTES_PER_ELEMENT * 4),
             attributes: [
                 {
                     name: 'inPosition',
@@ -65,130 +78,324 @@ var TextureTintPipeline = new Class({
                     offset: Float32Array.BYTES_PER_ELEMENT * 2
                 },
                 {
+                    name: 'inTintEffect',
+                    size: 1,
+                    type: config.renderer.gl.FLOAT,
+                    normalized: false,
+                    offset: Float32Array.BYTES_PER_ELEMENT * 4
+                },
+                {
                     name: 'inTint',
                     size: 4,
                     type: config.renderer.gl.UNSIGNED_BYTE,
                     normalized: true,
-                    offset: Float32Array.BYTES_PER_ELEMENT * 4
+                    offset: Float32Array.BYTES_PER_ELEMENT * 5
                 }
             ]
         });
 
         /**
-         * [description]
+         * Float32 view of the array buffer containing the pipeline's vertices.
          *
-         * @name Phaser.Renderer.WebGL.TextureTintPipeline#vertexViewF32
+         * @name Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#vertexViewF32
          * @type {Float32Array}
          * @since 3.0.0
          */
         this.vertexViewF32 = new Float32Array(this.vertexData);
 
         /**
-         * [description]
+         * Uint32 view of the array buffer containing the pipeline's vertices.
          *
-         * @name Phaser.Renderer.WebGL.TextureTintPipeline#vertexViewU32
+         * @name Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#vertexViewU32
          * @type {Uint32Array}
          * @since 3.0.0
          */
         this.vertexViewU32 = new Uint32Array(this.vertexData);
 
         /**
-         * [description]
+         * Size of the batch.
          *
-         * @name Phaser.Renderer.WebGL.TextureTintPipeline#maxQuads
+         * @name Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#maxQuads
          * @type {integer}
-         * @default 2000
          * @since 3.0.0
          */
-        this.maxQuads = 2000;
+        this.maxQuads = rendererConfig.batchSize;
 
         /**
-         * [description]
+         * Collection of batch information
          *
-         * @name Phaser.Renderer.WebGL.TextureTintPipeline#batches
+         * @name Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#batches
          * @type {array}
          * @since 3.1.0
          */
         this.batches = [];
 
+        /**
+         * A temporary Transform Matrix, re-used internally during batching.
+         *
+         * @name Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#_tempMatrix1
+         * @private
+         * @type {Phaser.GameObjects.Components.TransformMatrix}
+         * @since 3.11.0
+         */
+        this._tempMatrix1 = new TransformMatrix();
+
+        /**
+         * A temporary Transform Matrix, re-used internally during batching.
+         *
+         * @name Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#_tempMatrix2
+         * @private
+         * @type {Phaser.GameObjects.Components.TransformMatrix}
+         * @since 3.11.0
+         */
+        this._tempMatrix2 = new TransformMatrix();
+
+        /**
+         * A temporary Transform Matrix, re-used internally during batching.
+         *
+         * @name Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#_tempMatrix3
+         * @private
+         * @type {Phaser.GameObjects.Components.TransformMatrix}
+         * @since 3.11.0
+         */
+        this._tempMatrix3 = new TransformMatrix();
+
+        /**
+         * A temporary Transform Matrix, re-used internally during batching.
+         *
+         * @name Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#_tempMatrix4
+         * @private
+         * @type {Phaser.GameObjects.Components.TransformMatrix}
+         * @since 3.11.0
+         */
+        this._tempMatrix4 = new TransformMatrix();
+
+        /**
+         * Used internally to draw stroked triangles.
+         *
+         * @name Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#tempTriangle
+         * @type {array}
+         * @private
+         * @since 3.12.0
+         */
+        this.tempTriangle = [
+            { x: 0, y: 0, width: 0 },
+            { x: 0, y: 0, width: 0 },
+            { x: 0, y: 0, width: 0 },
+            { x: 0, y: 0, width: 0 }
+        ];
+
+        /**
+         * The tint effect to be applied by the shader in the next geometry draw:
+         * 
+         * 0 = texture multiplied by color
+         * 1 = solid color + texture alpha
+         * 2 = solid color, no texture
+         * 3 = solid texture, no color
+         *
+         * @name Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#tintEffect
+         * @type {number}
+         * @private
+         * @since 3.12.0
+         */
+        this.tintEffect = 2;
+
+        /**
+         * Cached stroke tint.
+         *
+         * @name Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#strokeTint
+         * @type {object}
+         * @private
+         * @since 3.12.0
+         */
+        this.strokeTint = { TL: 0, TR: 0, BL: 0, BR: 0 };
+
+        /**
+         * Cached fill tint.
+         *
+         * @name Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#fillTint
+         * @type {object}
+         * @private
+         * @since 3.12.0
+         */
+        this.fillTint = { TL: 0, TR: 0, BL: 0, BR: 0 };
+
+        /**
+         * Internal texture frame reference.
+         *
+         * @name Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#currentFrame
+         * @type {Phaser.Textures.Frame}
+         * @private
+         * @since 3.12.0
+         */
+        this.currentFrame = { u0: 0, v0: 0, u1: 1, v1: 1 };
+
+        /**
+         * Internal path quad cache.
+         *
+         * @name Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#firstQuad
+         * @type {array}
+         * @private
+         * @since 3.12.0
+         */
+        this.firstQuad = [ 0, 0, 0, 0, 0 ];
+
+        /**
+         * Internal path quad cache.
+         *
+         * @name Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#prevQuad
+         * @type {array}
+         * @private
+         * @since 3.12.0
+         */
+        this.prevQuad = [ 0, 0, 0, 0, 0 ];
+
+        /**
+         * Used internally for triangulating a polygon.
+         *
+         * @name Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#polygonCache
+         * @type {array}
+         * @private
+         * @since 3.12.0
+         */
+        this.polygonCache = [];
+
         this.mvpInit();
     },
 
     /**
-     * [description]
+     * Called every time the pipeline needs to be used.
+     * It binds all necessary resources.
      *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#setTexture2D
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#onBind
+     * @since 3.0.0
+     *
+     * @return {this} This WebGLPipeline instance.
+     */
+    onBind: function ()
+    {
+        WebGLPipeline.prototype.onBind.call(this);
+
+        this.mvpUpdate();
+
+        return this;
+    },
+
+    /**
+     * Resizes this pipeline and updates the projection.
+     *
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#resize
+     * @since 3.0.0
+     *
+     * @param {number} width - The new width.
+     * @param {number} height - The new height.
+     * @param {number} resolution - The resolution.
+     *
+     * @return {this} This WebGLPipeline instance.
+     */
+    resize: function (width, height, resolution)
+    {
+        WebGLPipeline.prototype.resize.call(this, width, height, resolution);
+
+        this.projOrtho(0, this.width, this.height, 0, -1000.0, 1000.0);
+
+        return this;
+    },
+
+    /**
+     * Assigns a texture to the current batch. If a different texture is already set it creates a new batch object.
+     *
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#setTexture2D
      * @since 3.1.0
      *
-     * @param {WebGLTexture} texture - [description]
-     * @param {integer} textureUnit - [description]
+     * @param {WebGLTexture} [texture] - WebGLTexture that will be assigned to the current batch. If not given uses blankTexture.
+     * @param {integer} [unit=0] - Texture unit to which the texture needs to be bound.
      *
-     * @return {Phaser.Renderer.WebGL.TextureTintPipeline} [description]
+     * @return {Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline} This pipeline instance.
      */
     setTexture2D: function (texture, unit)
     {
-        if (!texture)
+        if (texture === undefined) { texture = this.renderer.blankTexture.glTexture; }
+        if (unit === undefined) { unit = 0; }
+
+        if (this.requireTextureBatch(texture, unit))
         {
-            return this;
-        }
-
-        var batches = this.batches;
-
-        if (batches.length === 0)
-        {
-            this.pushBatch();
-        }
-
-        var batch = batches[batches.length - 1];
-
-        if (unit > 0)
-        {
-            if (batch.textures[unit - 1] &&
-                batch.textures[unit - 1] !== texture)
-            {
-                this.pushBatch();
-            }
-
-            batches[batches.length - 1].textures[unit - 1] = texture;
-        }
-        else
-        {
-            if (batch.texture !== null &&
-                batch.texture !== texture)
-            {
-                this.pushBatch();
-            }
-
-            batches[batches.length - 1].texture = texture;
+            this.pushBatch(texture, unit);
         }
 
         return this;
     },
 
     /**
-     * [description]
+     * Checks if the current batch has the same texture and texture unit, or if we need to create a new batch.
      *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#pushBatch
-     * @since 3.1.0
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#requireTextureBatch
+     * @since 3.16.0
+     *
+     * @param {WebGLTexture} texture - WebGLTexture that will be assigned to the current batch. If not given uses blankTexture.
+     * @param {integer} unit - Texture unit to which the texture needs to be bound.
+     *
+     * @return {boolean} `true` if the pipeline needs to create a new batch, otherwise `false`.
      */
-    pushBatch: function ()
+    requireTextureBatch: function (texture, unit)
     {
-        var batch = {
-            first: this.vertexCount,
-            texture: null,
-            textures: []
-        };
+        var batches = this.batches;
+        var batchLength = batches.length;
 
-        this.batches.push(batch);
+        if (batchLength > 0)
+        {
+            //  If Texture Unit specified, we get the texture from the textures array, otherwise we use the texture property
+            var currentTexture = (unit > 0) ? batches[batchLength - 1].textures[unit - 1] : batches[batchLength - 1].texture;
+
+            return !(currentTexture === texture);
+        }
+
+        return true;
     },
 
     /**
-     * [description]
+     * Creates a new batch object and pushes it to a batch array.
+     * The batch object contains information relevant to the current 
+     * vertex batch like the offset in the vertex buffer, vertex count and 
+     * the textures used by that batch.
      *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#flush
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#pushBatch
      * @since 3.1.0
+     * 
+     * @param {WebGLTexture} texture - Optional WebGLTexture that will be assigned to the created batch.
+     * @param {integer} unit - Texture unit to which the texture needs to be bound.
+     */
+    pushBatch: function (texture, unit)
+    {
+        if (unit === 0)
+        {
+            this.batches.push({
+                first: this.vertexCount,
+                texture: texture,
+                textures: []
+            });
+        }
+        else
+        {
+            var textures = [];
+
+            textures[unit - 1] = texture;
+
+            this.batches.push({
+                first: this.vertexCount,
+                texture: null,
+                textures: textures
+            });
+        }
+    },
+
+    /**
+     * Uploads the vertex data and emits a draw call for the current batch of vertices.
      *
-     * @return {Phaser.Renderer.WebGL.TextureTintPipeline} This Pipeline.
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#flush
+     * @since 3.0.0
+     *
+     * @return {this} This WebGLPipeline instance.
      */
     flush: function ()
     {
@@ -200,10 +407,11 @@ var TextureTintPipeline = new Class({
         this.flushLocked = true;
 
         var gl = this.gl;
-        var renderer = this.renderer;
         var vertexCount = this.vertexCount;
         var topology = this.topology;
         var vertexSize = this.vertexSize;
+        var renderer = this.renderer;
+
         var batches = this.batches;
         var batchCount = batches.length;
         var batchVertexCount = 0;
@@ -215,16 +423,20 @@ var TextureTintPipeline = new Class({
         if (batchCount === 0 || vertexCount === 0)
         {
             this.flushLocked = false;
+
             return this;
         }
 
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.bytes.subarray(0, vertexCount * vertexSize));
 
-        for (var index = 0; index < batches.length - 1; ++index)
+        //  Process the TEXTURE BATCHES
+
+        for (var index = 0; index < batchCount - 1; index++)
         {
             batch = batches[index];
             batchNext = batches[index + 1];
 
+            //  Multi-texture check (for non-zero texture units)
             if (batch.textures.length > 0)
             {
                 for (textureIndex = 0; textureIndex < batch.textures.length; ++textureIndex)
@@ -233,7 +445,7 @@ var TextureTintPipeline = new Class({
 
                     if (nTexture)
                     {
-                        renderer.setTexture2D(nTexture, 1 + textureIndex);
+                        renderer.setTexture2D(nTexture, 1 + textureIndex, false);
                     }
                 }
 
@@ -242,14 +454,21 @@ var TextureTintPipeline = new Class({
 
             batchVertexCount = batchNext.first - batch.first;
 
-            if (batch.texture === null || batchVertexCount <= 0) { continue; }
+            //  Bail out if texture property is null (i.e. if a texture unit > 0)
+            if (batch.texture === null || batchVertexCount <= 0)
+            {
+                continue;
+            }
 
-            renderer.setTexture2D(batch.texture, 0);
+            renderer.setTexture2D(batch.texture, 0, false);
+
             gl.drawArrays(topology, batch.first, batchVertexCount);
         }
 
         // Left over data
-        batch = batches[batches.length - 1];
+        batch = batches[batchCount - 1];
+
+        //  Multi-texture check (for non-zero texture units)
 
         if (batch.textures.length > 0)
         {
@@ -259,7 +478,7 @@ var TextureTintPipeline = new Class({
 
                 if (nTexture)
                 {
-                    renderer.setTexture2D(nTexture, 1 + textureIndex);
+                    renderer.setTexture2D(nTexture, 1 + textureIndex, false);
                 }
             }
 
@@ -270,1301 +489,398 @@ var TextureTintPipeline = new Class({
 
         if (batch.texture && batchVertexCount > 0)
         {
-            renderer.setTexture2D(batch.texture, 0);
+            renderer.setTexture2D(batch.texture, 0, false);
+
             gl.drawArrays(topology, batch.first, batchVertexCount);
         }
 
         this.vertexCount = 0;
+
         batches.length = 0;
-        this.pushBatch();
+
         this.flushLocked = false;
 
         return this;
     },
 
     /**
-     * [description]
+     * Takes a Sprite Game Object, or any object that extends it, and adds it to the batch.
      *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#onBind
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#batchSprite
      * @since 3.0.0
      *
-     * @return {Phaser.Renderer.WebGL.TextureTintPipeline} [description]
+     * @param {(Phaser.GameObjects.Image|Phaser.GameObjects.Sprite)} sprite - The texture based Game Object to add to the batch.
+     * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera to use for the rendering transform.
+     * @param {Phaser.GameObjects.Components.TransformMatrix} [parentTransformMatrix] - The transform matrix of the parent container, if set.
      */
-    onBind: function ()
+    batchSprite: function (sprite, camera, parentTransformMatrix)
     {
-        WebGLPipeline.prototype.onBind.call(this);
-        this.mvpUpdate();
-
-        if (this.batches.length === 0)
-        {
-            this.pushBatch();
-        }
-
-        return this;
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#resize
-     * @since 3.0.0
-     *
-     * @param {number} width - [description]
-     * @param {number} height - [description]
-     * @param {number} resolution - [description]
-     *
-     * @return {Phaser.Renderer.WebGL.TextureTintPipeline} [description]
-     */
-    resize: function (width, height, resolution)
-    {
-        WebGLPipeline.prototype.resize.call(this, width, height, resolution);
-        this.projOrtho(0, this.width, this.height, 0, -1000.0, 1000.0);
-        return this;
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#drawStaticTilemapLayer
-     * @since 3.0.0
-     *
-     * @param {Phaser.Tilemaps.StaticTilemapLayer} tilemap - [description]
-     * @param {Phaser.Cameras.Scene2D.Camera} camera - [description]
-     */
-    drawStaticTilemapLayer: function (tilemap)
-    {
-        if (tilemap.vertexCount > 0)
-        {
-            var pipelineVertexBuffer = this.vertexBuffer;
-            var gl = this.gl;
-            var renderer = this.renderer;
-            var frame = tilemap.tileset.image.get();
-
-            if (renderer.currentPipeline &&
-                renderer.currentPipeline.vertexCount > 0)
-            {
-                renderer.flush();
-            }
-
-            this.vertexBuffer = tilemap.vertexBuffer;
-            renderer.setPipeline(this);
-            renderer.setTexture2D(frame.source.glTexture, 0);
-            gl.drawArrays(this.topology, 0, tilemap.vertexCount);
-            this.vertexBuffer = pipelineVertexBuffer;
-        }
-
-        this.viewIdentity();
-        this.modelIdentity();
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#drawEmitterManager
-     * @since 3.0.0
-     *
-     * @param {Phaser.GameObjects.Particles.ParticleEmitterManager} emitterManager - [description]
-     * @param {Phaser.Cameras.Scene2D.Camera} camera - [description]
-     */
-    drawEmitterManager: function (emitterManager, camera)
-    {
+        //  Will cause a flush if there are batchSize entries already
         this.renderer.setPipeline(this);
 
-        var roundPixels = this.renderer.config.roundPixels;
-        var emitters = emitterManager.emitters.list;
-        var emitterCount = emitters.length;
-        var vertexViewF32 = this.vertexViewF32;
-        var vertexViewU32 = this.vertexViewU32;
-        var renderer = this.renderer;
-        var maxQuads = this.maxQuads;
-        var cameraScrollX = camera.scrollX;
-        var cameraScrollY = camera.scrollY;
-        var cameraMatrix = camera.matrix.matrix;
-        var cma = cameraMatrix[0];
-        var cmb = cameraMatrix[1];
-        var cmc = cameraMatrix[2];
-        var cmd = cameraMatrix[3];
-        var cme = cameraMatrix[4];
-        var cmf = cameraMatrix[5];
-        var sin = Math.sin;
-        var cos = Math.cos;
-        var vertexComponentCount = this.vertexComponentCount;
-        var vertexCapacity = this.vertexCapacity;
-        var texture = emitterManager.defaultFrame.source.glTexture;
+        var camMatrix = this._tempMatrix1;
+        var spriteMatrix = this._tempMatrix2;
+        var calcMatrix = this._tempMatrix3;
+
+        var frame = sprite.frame;
+        var texture = frame.glTexture;
+
+        var u0 = frame.u0;
+        var v0 = frame.v0;
+        var u1 = frame.u1;
+        var v1 = frame.v1;
+        var frameX = frame.x;
+        var frameY = frame.y;
+        var frameWidth = frame.cutWidth;
+        var frameHeight = frame.cutHeight;
+        var customPivot = frame.customPivot;
+
+        var displayOriginX = sprite.displayOriginX;
+        var displayOriginY = sprite.displayOriginY;
+
+        var x = -displayOriginX + frameX;
+        var y = -displayOriginY + frameY;
+
+        if (sprite.isCropped)
+        {
+            var crop = sprite._crop;
+
+            if (crop.flipX !== sprite.flipX || crop.flipY !== sprite.flipY)
+            {
+                frame.updateCropUVs(crop, sprite.flipX, sprite.flipY);
+            }
+
+            u0 = crop.u0;
+            v0 = crop.v0;
+            u1 = crop.u1;
+            v1 = crop.v1;
+
+            frameWidth = crop.width;
+            frameHeight = crop.height;
+
+            frameX = crop.x;
+            frameY = crop.y;
+
+            x = -displayOriginX + frameX;
+            y = -displayOriginY + frameY;
+        }
+
+        var flipX = 1;
+        var flipY = 1;
+
+        if (sprite.flipX)
+        {
+            if (!customPivot)
+            {
+                x += (-frame.realWidth + (displayOriginX * 2));
+            }
+
+            flipX = -1;
+        }
+
+        //  Auto-invert the flipY if this is coming from a GLTexture
+        if (sprite.flipY || (frame.source.isGLTexture && !texture.flipY))
+        {
+            if (!customPivot)
+            {
+                y += (-frame.realHeight + (displayOriginY * 2));
+            }
+
+            flipY = -1;
+        }
+
+        spriteMatrix.applyITRS(sprite.x, sprite.y, sprite.rotation, sprite.scaleX * flipX, sprite.scaleY * flipY);
+
+        camMatrix.copyFrom(camera.matrix);
+
+        if (parentTransformMatrix)
+        {
+            //  Multiply the camera by the parent matrix
+            camMatrix.multiplyWithOffset(parentTransformMatrix, -camera.scrollX * sprite.scrollFactorX, -camera.scrollY * sprite.scrollFactorY);
+
+            //  Undo the camera scroll
+            spriteMatrix.e = sprite.x;
+            spriteMatrix.f = sprite.y;
+
+            //  Multiply by the Sprite matrix, store result in calcMatrix
+            camMatrix.multiply(spriteMatrix, calcMatrix);
+        }
+        else
+        {
+            spriteMatrix.e -= camera.scrollX * sprite.scrollFactorX;
+            spriteMatrix.f -= camera.scrollY * sprite.scrollFactorY;
+    
+            //  Multiply by the Sprite matrix, store result in calcMatrix
+            camMatrix.multiply(spriteMatrix, calcMatrix);
+        }
+
+        var xw = x + frameWidth;
+        var yh = y + frameHeight;
+
+        var tx0 = calcMatrix.getX(x, y);
+        var ty0 = calcMatrix.getY(x, y);
+
+        var tx1 = calcMatrix.getX(x, yh);
+        var ty1 = calcMatrix.getY(x, yh);
+
+        var tx2 = calcMatrix.getX(xw, yh);
+        var ty2 = calcMatrix.getY(xw, yh);
+
+        var tx3 = calcMatrix.getX(xw, y);
+        var ty3 = calcMatrix.getY(xw, y);
+
+        var tintTL = Utils.getTintAppendFloatAlpha(sprite._tintTL, camera.alpha * sprite._alphaTL);
+        var tintTR = Utils.getTintAppendFloatAlpha(sprite._tintTR, camera.alpha * sprite._alphaTR);
+        var tintBL = Utils.getTintAppendFloatAlpha(sprite._tintBL, camera.alpha * sprite._alphaBL);
+        var tintBR = Utils.getTintAppendFloatAlpha(sprite._tintBR, camera.alpha * sprite._alphaBR);
+
+        if (camera.roundPixels)
+        {
+            tx0 = Math.round(tx0);
+            ty0 = Math.round(ty0);
+
+            tx1 = Math.round(tx1);
+            ty1 = Math.round(ty1);
+
+            tx2 = Math.round(tx2);
+            ty2 = Math.round(ty2);
+
+            tx3 = Math.round(tx3);
+            ty3 = Math.round(ty3);
+        }
 
         this.setTexture2D(texture, 0);
-        
-        for (var emitterIndex = 0; emitterIndex < emitterCount; ++emitterIndex)
-        {
-            var emitter = emitters[emitterIndex];
-            var particles = emitter.alive;
-            var aliveLength = particles.length;
-            var batchCount = Math.ceil(aliveLength / maxQuads);
-            var particleOffset = 0;
-            var scrollX = cameraScrollX * emitter.scrollFactorX;
-            var scrollY = cameraScrollY * emitter.scrollFactorY;
 
-            if (!emitter.visible || aliveLength === 0)
-            {
-                continue;
-            }
+        var tintEffect = (sprite._isTinted && sprite.tintFill);
 
-            renderer.setBlendMode(emitter.blendMode);
-
-            if (this.vertexCount >= vertexCapacity)
-            {
-                this.flush();
-                this.setTexture2D(texture, 0);
-            }
-
-            for (var batchIndex = 0; batchIndex < batchCount; ++batchIndex)
-            {
-                var batchSize = Math.min(aliveLength, maxQuads);
-
-                for (var index = 0; index < batchSize; ++index)
-                {
-                    var particle = particles[particleOffset + index];
-
-                    if (particle.alpha <= 0)
-                    {
-                        continue;
-                    }
-
-                    var frame = particle.frame;
-                    var uvs = frame.uvs;
-                    var x = -(frame.halfWidth);
-                    var y = -(frame.halfHeight);
-                    var color = particle.color;
-                    var xw = x + frame.width;
-                    var yh = y + frame.height;
-                    var sr = sin(particle.rotation);
-                    var cr = cos(particle.rotation);
-                    var sra = cr * particle.scaleX;
-                    var srb = -sr * particle.scaleX;
-                    var src = sr * particle.scaleY;
-                    var srd = cr * particle.scaleY;
-                    var sre = particle.x - scrollX * particle.scrollFactorX;
-                    var srf = particle.y - scrollY * particle.scrollFactorY;
-                    var mva = sra * cma + srb * cmc;
-                    var mvb = sra * cmb + srb * cmd;
-                    var mvc = src * cma + srd * cmc;
-                    var mvd = src * cmb + srd * cmd;
-                    var mve = sre * cma + srf * cmc + cme;
-                    var mvf = sre * cmb + srf * cmd + cmf;
-                    var tx0 = x * mva + y * mvc + mve;
-                    var ty0 = x * mvb + y * mvd + mvf;
-                    var tx1 = x * mva + yh * mvc + mve;
-                    var ty1 = x * mvb + yh * mvd + mvf;
-                    var tx2 = xw * mva + yh * mvc + mve;
-                    var ty2 = xw * mvb + yh * mvd + mvf;
-                    var tx3 = xw * mva + y * mvc + mve;
-                    var ty3 = xw * mvb + y * mvd + mvf;
-                    var vertexOffset = this.vertexCount * vertexComponentCount;
-
-                    if (roundPixels)
-                    {
-                        tx0 |= 0;
-                        ty0 |= 0;
-                        tx1 |= 0;
-                        ty1 |= 0;
-                        tx2 |= 0;
-                        ty2 |= 0;
-                        tx3 |= 0;
-                        ty3 |= 0;
-                    }
-
-                    vertexViewF32[vertexOffset + 0] = tx0;
-                    vertexViewF32[vertexOffset + 1] = ty0;
-                    vertexViewF32[vertexOffset + 2] = uvs.x0;
-                    vertexViewF32[vertexOffset + 3] = uvs.y0;
-                    vertexViewU32[vertexOffset + 4] = color;
-                    vertexViewF32[vertexOffset + 5] = tx1;
-                    vertexViewF32[vertexOffset + 6] = ty1;
-                    vertexViewF32[vertexOffset + 7] = uvs.x1;
-                    vertexViewF32[vertexOffset + 8] = uvs.y1;
-                    vertexViewU32[vertexOffset + 9] = color;
-                    vertexViewF32[vertexOffset + 10] = tx2;
-                    vertexViewF32[vertexOffset + 11] = ty2;
-                    vertexViewF32[vertexOffset + 12] = uvs.x2;
-                    vertexViewF32[vertexOffset + 13] = uvs.y2;
-                    vertexViewU32[vertexOffset + 14] = color;
-                    vertexViewF32[vertexOffset + 15] = tx0;
-                    vertexViewF32[vertexOffset + 16] = ty0;
-                    vertexViewF32[vertexOffset + 17] = uvs.x0;
-                    vertexViewF32[vertexOffset + 18] = uvs.y0;
-                    vertexViewU32[vertexOffset + 19] = color;
-                    vertexViewF32[vertexOffset + 20] = tx2;
-                    vertexViewF32[vertexOffset + 21] = ty2;
-                    vertexViewF32[vertexOffset + 22] = uvs.x2;
-                    vertexViewF32[vertexOffset + 23] = uvs.y2;
-                    vertexViewU32[vertexOffset + 24] = color;
-                    vertexViewF32[vertexOffset + 25] = tx3;
-                    vertexViewF32[vertexOffset + 26] = ty3;
-                    vertexViewF32[vertexOffset + 27] = uvs.x3;
-                    vertexViewF32[vertexOffset + 28] = uvs.y3;
-                    vertexViewU32[vertexOffset + 29] = color;
-
-                    this.vertexCount += 6;
-                }
-
-                particleOffset += batchSize;
-                aliveLength -= batchSize;
-
-                if (this.vertexCount >= vertexCapacity)
-                {
-                    this.flush();
-                    this.setTexture2D(texture, 0);
-                }
-            }
-        }
-        
-        this.setTexture2D(texture, 0);
+        this.batchQuad(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, u0, v0, u1, v1, tintTL, tintTR, tintBL, tintBR, tintEffect, texture, 0);
     },
 
     /**
-     * [description]
+     * Adds the vertices data into the batch and flushes if full.
+     * 
+     * Assumes 6 vertices in the following arrangement:
+     * 
+     * ```
+     * 0----3
+     * |\  B|
+     * | \  |
+     * |  \ |
+     * | A \|
+     * |    \
+     * 1----2
+     * ```
+     * 
+     * Where tx0/ty0 = 0, tx1/ty1 = 1, tx2/ty2 = 2 and tx3/ty3 = 3
      *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#drawBlitter
-     * @since 3.0.0
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#batchQuad
+     * @since 3.12.0
      *
-     * @param {Phaser.GameObjects.Blitter} blitter - [description]
-     * @param {Phaser.Cameras.Scene2D.Camera} camera - [description]
+     * @param {number} x0 - The top-left x position.
+     * @param {number} y0 - The top-left y position.
+     * @param {number} x1 - The bottom-left x position.
+     * @param {number} y1 - The bottom-left y position.
+     * @param {number} x2 - The bottom-right x position.
+     * @param {number} y2 - The bottom-right y position.
+     * @param {number} x3 - The top-right x position.
+     * @param {number} y3 - The top-right y position.
+     * @param {number} u0 - UV u0 value.
+     * @param {number} v0 - UV v0 value.
+     * @param {number} u1 - UV u1 value.
+     * @param {number} v1 - UV v1 value.
+     * @param {number} tintTL - The top-left tint color value.
+     * @param {number} tintTR - The top-right tint color value.
+     * @param {number} tintBL - The bottom-left tint color value.
+     * @param {number} tintBR - The bottom-right tint color value.
+     * @param {(number|boolean)} tintEffect - The tint effect for the shader to use.
+     * @param {WebGLTexture} [texture] - WebGLTexture that will be assigned to the current batch if a flush occurs.
+     * @param {integer} [unit=0] - Texture unit to which the texture needs to be bound.
+     * 
+     * @return {boolean} `true` if this method caused the batch to flush, otherwise `false`.
      */
-    drawBlitter: function (blitter, camera)
+    batchQuad: function (x0, y0, x1, y1, x2, y2, x3, y3, u0, v0, u1, v1, tintTL, tintTR, tintBL, tintBR, tintEffect, texture, unit)
     {
-        this.renderer.setPipeline(this);
-
-        var roundPixels = this.renderer.config.roundPixels;
-        var getTint = Utils.getTintAppendFloatAlpha;
-        var vertexViewF32 = this.vertexViewF32;
-        var vertexViewU32 = this.vertexViewU32;
-        var list = blitter.getRenderList();
-        var length = list.length;
-        var cameraMatrix = camera.matrix.matrix;
-        var a = cameraMatrix[0];
-        var b = cameraMatrix[1];
-        var c = cameraMatrix[2];
-        var d = cameraMatrix[3];
-        var e = cameraMatrix[4];
-        var f = cameraMatrix[5];
-        var cameraScrollX = camera.scrollX * blitter.scrollFactorX;
-        var cameraScrollY = camera.scrollY * blitter.scrollFactorY;
-        var batchCount = Math.ceil(length / this.maxQuads);
-        var batchOffset = 0;
-        var blitterX = blitter.x - cameraScrollX;
-        var blitterY = blitter.y - cameraScrollY;
-
-        for (var batchIndex = 0; batchIndex < batchCount; ++batchIndex)
-        {
-            var batchSize = Math.min(length, this.maxQuads);
-
-            for (var index = 0; index < batchSize; ++index)
-            {
-                var bob = list[batchOffset + index];
-                var frame = bob.frame;
-                var alpha = bob.alpha;
-                var tint = getTint(0xffffff, alpha);
-                var uvs = frame.uvs;
-                var flipX = bob.flipX;
-                var flipY = bob.flipY;
-                var width = frame.width * (flipX ? -1.0 : 1.0);
-                var height = frame.height * (flipY ? -1.0 : 1.0);
-                var x = blitterX + bob.x + frame.x + (frame.width * ((flipX) ? 1.0 : 0.0));
-                var y = blitterY + bob.y + frame.y + (frame.height * ((flipY) ? 1.0 : 0.0));
-                var xw = x + width;
-                var yh = y + height;
-                var tx0 = x * a + y * c + e;
-                var ty0 = x * b + y * d + f;
-                var tx1 = xw * a + yh * c + e;
-                var ty1 = xw * b + yh * d + f;
-            
-                // Bind Texture if texture wasn't bound.
-                // This needs to be here because of multiple
-                // texture atlas.
-                this.setTexture2D(frame.texture.source[frame.sourceIndex].glTexture, 0);
-
-                var vertexOffset = this.vertexCount * this.vertexComponentCount;
-
-                if (roundPixels)
-                {
-                    tx0 |= 0;
-                    ty0 |= 0;
-                    tx1 |= 0;
-                    ty1 |= 0;
-                }
-            
-                vertexViewF32[vertexOffset + 0] = tx0;
-                vertexViewF32[vertexOffset + 1] = ty0;
-                vertexViewF32[vertexOffset + 2] = uvs.x0;
-                vertexViewF32[vertexOffset + 3] = uvs.y0;
-                vertexViewU32[vertexOffset + 4] = tint;
-                vertexViewF32[vertexOffset + 5] = tx0;
-                vertexViewF32[vertexOffset + 6] = ty1;
-                vertexViewF32[vertexOffset + 7] = uvs.x1;
-                vertexViewF32[vertexOffset + 8] = uvs.y1;
-                vertexViewU32[vertexOffset + 9] = tint;
-                vertexViewF32[vertexOffset + 10] = tx1;
-                vertexViewF32[vertexOffset + 11] = ty1;
-                vertexViewF32[vertexOffset + 12] = uvs.x2;
-                vertexViewF32[vertexOffset + 13] = uvs.y2;
-                vertexViewU32[vertexOffset + 14] = tint;
-                vertexViewF32[vertexOffset + 15] = tx0;
-                vertexViewF32[vertexOffset + 16] = ty0;
-                vertexViewF32[vertexOffset + 17] = uvs.x0;
-                vertexViewF32[vertexOffset + 18] = uvs.y0;
-                vertexViewU32[vertexOffset + 19] = tint;
-                vertexViewF32[vertexOffset + 20] = tx1;
-                vertexViewF32[vertexOffset + 21] = ty1;
-                vertexViewF32[vertexOffset + 22] = uvs.x2;
-                vertexViewF32[vertexOffset + 23] = uvs.y2;
-                vertexViewU32[vertexOffset + 24] = tint;
-                vertexViewF32[vertexOffset + 25] = tx1;
-                vertexViewF32[vertexOffset + 26] = ty0;
-                vertexViewF32[vertexOffset + 27] = uvs.x3;
-                vertexViewF32[vertexOffset + 28] = uvs.y3;
-                vertexViewU32[vertexOffset + 29] = tint;
-
-                this.vertexCount += 6;
-
-                if (this.vertexCount >= this.vertexCapacity)
-                {
-                    this.flush();
-                }
-            }
-
-            batchOffset += batchSize;
-            length -= batchSize;
-
-            if (this.vertexCount >= this.vertexCapacity)
-            {
-                this.flush();
-            }
-        }
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#batchSprite
-     * @since 3.0.0
-     *
-     * @param {Phaser.GameObjects.Sprite} sprite - [description]
-     * @param {Phaser.Cameras.Scene2D.Camera} camera - [description]
-     */
-    batchSprite: function (sprite, camera)
-    {
-        this.renderer.setPipeline(this);
+        var hasFlushed = false;
 
         if (this.vertexCount + 6 > this.vertexCapacity)
         {
             this.flush();
+
+            hasFlushed = true;
+
+            this.setTexture2D(texture, unit);
         }
 
-        var roundPixels = this.renderer.config.roundPixels;
-        var getTint = Utils.getTintAppendFloatAlpha;
         var vertexViewF32 = this.vertexViewF32;
         var vertexViewU32 = this.vertexViewU32;
-        var cameraMatrix = camera.matrix.matrix;
-        var frame = sprite.frame;
-        var texture = frame.texture.source[frame.sourceIndex].glTexture;
-        var forceFlipY = (texture.isRenderTexture ? true : false);
-        var flipX = sprite.flipX;
-        var flipY = sprite.flipY ^ forceFlipY;
-        var uvs = frame.uvs;
-        var width = frame.width * (flipX ? -1.0 : 1.0);
-        var height = frame.height * (flipY ? -1.0 : 1.0);
-        var x = -sprite.displayOriginX + frame.x + ((frame.width) * (flipX ? 1.0 : 0.0));
-        var y = -sprite.displayOriginY + frame.y + ((frame.height) * (flipY ? 1.0 : 0.0));
-        var xw = (roundPixels ? (x|0) : x) + width;
-        var yh = (roundPixels ? (y|0) : y) + height;
-        var translateX = sprite.x - camera.scrollX * sprite.scrollFactorX;
-        var translateY = sprite.y - camera.scrollY * sprite.scrollFactorY;
-        var scaleX = sprite.scaleX;
-        var scaleY = sprite.scaleY;
-        var rotation = -sprite.rotation;
-        var alphaTL = sprite._alphaTL;
-        var alphaTR = sprite._alphaTR;
-        var alphaBL = sprite._alphaBL;
-        var alphaBR = sprite._alphaBR;
-        var tintTL = sprite._tintTL;
-        var tintTR = sprite._tintTR;
-        var tintBL = sprite._tintBL;
-        var tintBR = sprite._tintBR;
-        var sr = Math.sin(rotation);
-        var cr = Math.cos(rotation);
-        var sra = cr * scaleX;
-        var srb = -sr * scaleX;
-        var src = sr * scaleY;
-        var srd = cr * scaleY;
-        var sre = translateX;
-        var srf = translateY;
-        var cma = cameraMatrix[0];
-        var cmb = cameraMatrix[1];
-        var cmc = cameraMatrix[2];
-        var cmd = cameraMatrix[3];
-        var cme = cameraMatrix[4];
-        var cmf = cameraMatrix[5];
-        var mva = sra * cma + srb * cmc;
-        var mvb = sra * cmb + srb * cmd;
-        var mvc = src * cma + srd * cmc;
-        var mvd = src * cmb + srd * cmd;
-        var mve = sre * cma + srf * cmc + cme;
-        var mvf = sre * cmb + srf * cmd + cmf;
-        var tx0 = x * mva + y * mvc + mve;
-        var ty0 = x * mvb + y * mvd + mvf;
-        var tx1 = x * mva + yh * mvc + mve;
-        var ty1 = x * mvb + yh * mvd + mvf;
-        var tx2 = xw * mva + yh * mvc + mve;
-        var ty2 = xw * mvb + yh * mvd + mvf;
-        var tx3 = xw * mva + y * mvc + mve;
-        var ty3 = xw * mvb + y * mvd + mvf;
-        var vTintTL = getTint(tintTL, alphaTL);
-        var vTintTR = getTint(tintTR, alphaTR);
-        var vTintBL = getTint(tintBL, alphaBL);
-        var vTintBR = getTint(tintBR, alphaBR);
-        var vertexOffset = 0;
 
-        if (roundPixels)
-        {
-            tx0 |= 0;
-            ty0 |= 0;
-            tx1 |= 0;
-            ty1 |= 0;
-            tx2 |= 0;
-            ty2 |= 0;
-            tx3 |= 0;
-            ty3 |= 0;
-        }
+        var vertexOffset = (this.vertexCount * this.vertexComponentCount) - 1;
+            
+        vertexViewF32[++vertexOffset] = x0;
+        vertexViewF32[++vertexOffset] = y0;
+        vertexViewF32[++vertexOffset] = u0;
+        vertexViewF32[++vertexOffset] = v0;
+        vertexViewF32[++vertexOffset] = tintEffect;
+        vertexViewU32[++vertexOffset] = tintTL;
 
-        this.setTexture2D(texture, 0);
+        vertexViewF32[++vertexOffset] = x1;
+        vertexViewF32[++vertexOffset] = y1;
+        vertexViewF32[++vertexOffset] = u0;
+        vertexViewF32[++vertexOffset] = v1;
+        vertexViewF32[++vertexOffset] = tintEffect;
+        vertexViewU32[++vertexOffset] = tintBL;
 
-        vertexOffset = this.vertexCount * this.vertexComponentCount;
+        vertexViewF32[++vertexOffset] = x2;
+        vertexViewF32[++vertexOffset] = y2;
+        vertexViewF32[++vertexOffset] = u1;
+        vertexViewF32[++vertexOffset] = v1;
+        vertexViewF32[++vertexOffset] = tintEffect;
+        vertexViewU32[++vertexOffset] = tintBR;
 
-        vertexViewF32[vertexOffset + 0] = tx0;
-        vertexViewF32[vertexOffset + 1] = ty0;
-        vertexViewF32[vertexOffset + 2] = uvs.x0;
-        vertexViewF32[vertexOffset + 3] = uvs.y0;
-        vertexViewU32[vertexOffset + 4] = vTintTL;
-        vertexViewF32[vertexOffset + 5] = tx1;
-        vertexViewF32[vertexOffset + 6] = ty1;
-        vertexViewF32[vertexOffset + 7] = uvs.x1;
-        vertexViewF32[vertexOffset + 8] = uvs.y1;
-        vertexViewU32[vertexOffset + 9] = vTintBL;
-        vertexViewF32[vertexOffset + 10] = tx2;
-        vertexViewF32[vertexOffset + 11] = ty2;
-        vertexViewF32[vertexOffset + 12] = uvs.x2;
-        vertexViewF32[vertexOffset + 13] = uvs.y2;
-        vertexViewU32[vertexOffset + 14] = vTintBR;
-        vertexViewF32[vertexOffset + 15] = tx0;
-        vertexViewF32[vertexOffset + 16] = ty0;
-        vertexViewF32[vertexOffset + 17] = uvs.x0;
-        vertexViewF32[vertexOffset + 18] = uvs.y0;
-        vertexViewU32[vertexOffset + 19] = vTintTL;
-        vertexViewF32[vertexOffset + 20] = tx2;
-        vertexViewF32[vertexOffset + 21] = ty2;
-        vertexViewF32[vertexOffset + 22] = uvs.x2;
-        vertexViewF32[vertexOffset + 23] = uvs.y2;
-        vertexViewU32[vertexOffset + 24] = vTintBR;
-        vertexViewF32[vertexOffset + 25] = tx3;
-        vertexViewF32[vertexOffset + 26] = ty3;
-        vertexViewF32[vertexOffset + 27] = uvs.x3;
-        vertexViewF32[vertexOffset + 28] = uvs.y3;
-        vertexViewU32[vertexOffset + 29] = vTintTR;
+        vertexViewF32[++vertexOffset] = x0;
+        vertexViewF32[++vertexOffset] = y0;
+        vertexViewF32[++vertexOffset] = u0;
+        vertexViewF32[++vertexOffset] = v0;
+        vertexViewF32[++vertexOffset] = tintEffect;
+        vertexViewU32[++vertexOffset] = tintTL;
+
+        vertexViewF32[++vertexOffset] = x2;
+        vertexViewF32[++vertexOffset] = y2;
+        vertexViewF32[++vertexOffset] = u1;
+        vertexViewF32[++vertexOffset] = v1;
+        vertexViewF32[++vertexOffset] = tintEffect;
+        vertexViewU32[++vertexOffset] = tintBR;
+
+        vertexViewF32[++vertexOffset] = x3;
+        vertexViewF32[++vertexOffset] = y3;
+        vertexViewF32[++vertexOffset] = u1;
+        vertexViewF32[++vertexOffset] = v0;
+        vertexViewF32[++vertexOffset] = tintEffect;
+        vertexViewU32[++vertexOffset] = tintTR;
 
         this.vertexCount += 6;
+
+        return hasFlushed;
     },
 
     /**
-     * [description]
+     * Adds the vertices data into the batch and flushes if full.
+     * 
+     * Assumes 3 vertices in the following arrangement:
+     * 
+     * ```
+     * 0
+     * |\
+     * | \
+     * |  \
+     * |   \
+     * |    \
+     * 1-----2
+     * ```
      *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#batchMesh
-     * @since 3.0.0
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#batchTri
+     * @since 3.12.0
      *
-     * @param {Phaser.GameObjects.Mesh} mesh - [description]
-     * @param {Phaser.Cameras.Scene2D.Camera} camera - [description]
+     * @param {number} x1 - The bottom-left x position.
+     * @param {number} y1 - The bottom-left y position.
+     * @param {number} x2 - The bottom-right x position.
+     * @param {number} y2 - The bottom-right y position.
+     * @param {number} x3 - The top-right x position.
+     * @param {number} y3 - The top-right y position.
+     * @param {number} u0 - UV u0 value.
+     * @param {number} v0 - UV v0 value.
+     * @param {number} u1 - UV u1 value.
+     * @param {number} v1 - UV v1 value.
+     * @param {number} tintTL - The top-left tint color value.
+     * @param {number} tintTR - The top-right tint color value.
+     * @param {number} tintBL - The bottom-left tint color value.
+     * @param {(number|boolean)} tintEffect - The tint effect for the shader to use.
+     * @param {WebGLTexture} [texture] - WebGLTexture that will be assigned to the current batch if a flush occurs.
+     * @param {integer} [unit=0] - Texture unit to which the texture needs to be bound.
+     * 
+     * @return {boolean} `true` if this method caused the batch to flush, otherwise `false`.
      */
-    batchMesh: function (mesh, camera)
+    batchTri: function (x1, y1, x2, y2, x3, y3, u0, v0, u1, v1, tintTL, tintTR, tintBL, tintEffect, texture, unit)
     {
-        var vertices = mesh.vertices;
-        var length = vertices.length;
-        var vertexCount = (length / 2)|0;
+        var hasFlushed = false;
 
-        this.renderer.setPipeline(this);
-
-        if (this.vertexCount + vertexCount > this.vertexCapacity)
+        if (this.vertexCount + 3 > this.vertexCapacity)
         {
             this.flush();
+
+            this.setTexture2D(texture, unit);
+
+            hasFlushed = true;
         }
 
-        var roundPixels = this.renderer.config.roundPixels;
-        var getTint = Utils.getTintAppendFloatAlpha;
-        var uvs = mesh.uv;
-        var colors = mesh.colors;
-        var alphas = mesh.alphas;
         var vertexViewF32 = this.vertexViewF32;
         var vertexViewU32 = this.vertexViewU32;
-        var cameraMatrix = camera.matrix.matrix;
-        var frame = mesh.frame;
-        var texture = mesh.texture.source[frame.sourceIndex].glTexture;
-        var translateX = mesh.x - camera.scrollX * mesh.scrollFactorX;
-        var translateY = mesh.y - camera.scrollY * mesh.scrollFactorY;
-        var scaleX = mesh.scaleX;
-        var scaleY = mesh.scaleY;
-        var rotation = -mesh.rotation;
-        var sr = Math.sin(rotation);
-        var cr = Math.cos(rotation);
-        var sra = cr * scaleX;
-        var srb = -sr * scaleX;
-        var src = sr * scaleY;
-        var srd = cr * scaleY;
-        var sre = translateX;
-        var srf = translateY;
-        var cma = cameraMatrix[0];
-        var cmb = cameraMatrix[1];
-        var cmc = cameraMatrix[2];
-        var cmd = cameraMatrix[3];
-        var cme = cameraMatrix[4];
-        var cmf = cameraMatrix[5];
-        var mva = sra * cma + srb * cmc;
-        var mvb = sra * cmb + srb * cmd;
-        var mvc = src * cma + srd * cmc;
-        var mvd = src * cmb + srd * cmd;
-        var mve = sre * cma + srf * cmc + cme;
-        var mvf = sre * cmb + srf * cmd + cmf;
-        var vertexOffset = 0;
 
-        this.setTexture2D(texture, 0);
+        var vertexOffset = (this.vertexCount * this.vertexComponentCount) - 1;
 
-        vertexOffset = this.vertexCount * this.vertexComponentCount;
+        vertexViewF32[++vertexOffset] = x1;
+        vertexViewF32[++vertexOffset] = y1;
+        vertexViewF32[++vertexOffset] = u0;
+        vertexViewF32[++vertexOffset] = v0;
+        vertexViewF32[++vertexOffset] = tintEffect;
+        vertexViewU32[++vertexOffset] = tintTL;
 
-        for (var index = 0, index0 = 0; index < length; index += 2)
-        {
-            var x = vertices[index + 0];
-            var y = vertices[index + 1];
-            var tx = x * mva + y * mvc + mve;
-            var ty = x * mvb + y * mvd + mvf;
+        vertexViewF32[++vertexOffset] = x2;
+        vertexViewF32[++vertexOffset] = y2;
+        vertexViewF32[++vertexOffset] = u0;
+        vertexViewF32[++vertexOffset] = v1;
+        vertexViewF32[++vertexOffset] = tintEffect;
+        vertexViewU32[++vertexOffset] = tintTR;
 
-            if (roundPixels)
-            {
-                tx |= 0;
-                ty |= 0;
-            }
+        vertexViewF32[++vertexOffset] = x3;
+        vertexViewF32[++vertexOffset] = y3;
+        vertexViewF32[++vertexOffset] = u1;
+        vertexViewF32[++vertexOffset] = v1;
+        vertexViewF32[++vertexOffset] = tintEffect;
+        vertexViewU32[++vertexOffset] = tintBL;
 
-            vertexViewF32[vertexOffset + 0] = tx;
-            vertexViewF32[vertexOffset + 1] = ty;
-            vertexViewF32[vertexOffset + 2] = uvs[index + 0];
-            vertexViewF32[vertexOffset + 3] = uvs[index + 1];
-            vertexViewU32[vertexOffset + 4] = getTint(colors[index0], alphas[index0]);
+        this.vertexCount += 3;
 
-            vertexOffset += 5;
-            index0 += 1;
-        }
-
-        this.vertexCount += vertexCount;
+        return hasFlushed;
     },
 
     /**
-     * [description]
+     * Generic function for batching a textured quad using argument values instead of a Game Object.
      *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#batchBitmapText
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#batchTexture
      * @since 3.0.0
      *
-     * @param {Phaser.GameObjects.BitmapText} bitmapText - [description]
-     * @param {Phaser.Cameras.Scene2D.Camera} camera - [description]
-     */
-    batchBitmapText: function (bitmapText, camera)
-    {
-        this.renderer.setPipeline(this);
-
-        if (this.vertexCount + 6 > this.vertexCapacity)
-        {
-            this.flush();
-        }
-
-        var roundPixels = this.renderer.config.roundPixels;
-        var text = bitmapText.text;
-        var textLength = text.length;
-        var getTint = Utils.getTintAppendFloatAlpha;
-        var vertexViewF32 = this.vertexViewF32;
-        var vertexViewU32 = this.vertexViewU32;
-        var cameraMatrix = camera.matrix.matrix;
-        var cameraWidth = camera.width + 50;
-        var cameraHeight = camera.height + 50;
-        var cameraX = -50;
-        var cameraY = -50;
-        var frame = bitmapText.frame;
-        var textureSource = bitmapText.texture.source[frame.sourceIndex];
-        var cameraScrollX = camera.scrollX * bitmapText.scrollFactorX;
-        var cameraScrollY = camera.scrollY * bitmapText.scrollFactorY;
-        var fontData = bitmapText.fontData;
-        var lineHeight = fontData.lineHeight;
-        var scale = (bitmapText.fontSize / fontData.size);
-        var chars = fontData.chars;
-        var alpha = bitmapText.alpha;
-        var vTintTL = getTint(bitmapText._tintTL, alpha);
-        var vTintTR = getTint(bitmapText._tintTR, alpha);
-        var vTintBL = getTint(bitmapText._tintBL, alpha);
-        var vTintBR = getTint(bitmapText._tintBR, alpha);
-        var srcX = bitmapText.x;
-        var srcY = bitmapText.y;
-        var textureX = frame.cutX;
-        var textureY = frame.cutY;
-        var textureWidth = textureSource.width;
-        var textureHeight = textureSource.height;
-        var texture = textureSource.glTexture;
-        var xAdvance = 0;
-        var yAdvance = 0;
-        var indexCount = 0;
-        var charCode = 0;
-        var glyph = null;
-        var glyphX = 0;
-        var glyphY = 0;
-        var glyphW = 0;
-        var glyphH = 0;
-        var x = 0;
-        var y = 0;
-        var xw = 0;
-        var yh = 0;
-
-        var tx0;
-        var ty0;
-        var tx1;
-        var ty1;
-        var tx2;
-        var ty2;
-        var tx3;
-        var ty3;
-
-        var umin = 0;
-        var umax = 0;
-        var vmin = 0;
-        var vmax = 0;
-        var lastGlyph = null;
-        var lastCharCode = 0;
-        var translateX = (srcX - cameraScrollX) + frame.x;
-        var translateY = (srcY - cameraScrollY) + frame.y;
-        var rotation = -bitmapText.rotation;
-        var scaleX = bitmapText.scaleX;
-        var scaleY = bitmapText.scaleY;
-        var sr = Math.sin(rotation);
-        var cr = Math.cos(rotation);
-        var sra = cr * scaleX;
-        var srb = -sr * scaleX;
-        var src = sr * scaleY;
-        var srd = cr * scaleY;
-        var sre = translateX;
-        var srf = translateY;
-        var cma = cameraMatrix[0];
-        var cmb = cameraMatrix[1];
-        var cmc = cameraMatrix[2];
-        var cmd = cameraMatrix[3];
-        var cme = cameraMatrix[4];
-        var cmf = cameraMatrix[5];
-        var mva = sra * cma + srb * cmc;
-        var mvb = sra * cmb + srb * cmd;
-        var mvc = src * cma + srd * cmc;
-        var mvd = src * cmb + srd * cmd;
-        var mve = sre * cma + srf * cmc + cme;
-        var mvf = sre * cmb + srf * cmd + cmf;
-        var vertexOffset = 0;
-
-        this.setTexture2D(texture, 0);
-
-        for (var index = 0; index < textLength; ++index)
-        {
-            charCode = text.charCodeAt(index);
-
-            if (charCode === 10)
-            {
-                xAdvance = 0;
-                indexCount = 0;
-                yAdvance += lineHeight;
-                lastGlyph = null;
-                continue;
-            }
-
-            glyph = chars[charCode];
-
-            if (!glyph)
-            {
-                continue;
-            }
-
-            glyphX = textureX + glyph.x;
-            glyphY = textureY + glyph.y;
-
-            glyphW = glyph.width;
-            glyphH = glyph.height;
-
-            x = (indexCount + glyph.xOffset + xAdvance) * scale;
-            y = (glyph.yOffset + yAdvance) * scale;
-
-            if (lastGlyph !== null)
-            {
-                var kerningOffset = glyph.kerning[lastCharCode];
-                x += (kerningOffset !== undefined) ? kerningOffset : 0;
-            }
-
-            xAdvance += glyph.xAdvance;
-            indexCount += 1;
-            lastGlyph = glyph;
-            lastCharCode = charCode;
-
-            //  Nothing to render or a space? Then skip to the next glyph
-            if (glyphW === 0 || glyphH === 0 || charCode === 32)
-            {
-                continue;
-            }
-
-            x -= bitmapText.displayOriginX;
-            y -= bitmapText.displayOriginY;
-
-            xw = x + glyphW * scale;
-            yh = y + glyphH * scale;
-            tx0 = x * mva + y * mvc + mve;
-            ty0 = x * mvb + y * mvd + mvf;
-            tx1 = x * mva + yh * mvc + mve;
-            ty1 = x * mvb + yh * mvd + mvf;
-            tx2 = xw * mva + yh * mvc + mve;
-            ty2 = xw * mvb + yh * mvd + mvf;
-            tx3 = xw * mva + y * mvc + mve;
-            ty3 = xw * mvb + y * mvd + mvf;
-
-            umin = glyphX / textureWidth;
-            umax = (glyphX + glyphW) / textureWidth;
-            vmin = glyphY / textureHeight;
-            vmax = (glyphY + glyphH) / textureHeight;
-
-            if ((tx0 < cameraX || tx0 > cameraWidth || ty0 < cameraY || ty0 > cameraHeight) &&
-                (tx1 < cameraX || tx1 > cameraWidth || ty1 < cameraY || ty1 > cameraHeight) &&
-                (tx2 < cameraX || tx2 > cameraWidth || ty2 < cameraY || ty2 > cameraHeight) &&
-                (tx3 < cameraX || tx3 > cameraWidth || ty3 < cameraY || ty3 > cameraHeight))
-            {
-                continue;
-            }
-
-            if (this.vertexCount + 6 > this.vertexCapacity)
-            {
-                this.flush();
-            }
-            
-            vertexOffset = this.vertexCount * this.vertexComponentCount;
-
-            if (roundPixels)
-            {
-                tx0 |= 0;
-                ty0 |= 0;
-                tx1 |= 0;
-                ty1 |= 0;
-                tx2 |= 0;
-                ty2 |= 0;
-                tx3 |= 0;
-                ty3 |= 0;
-            }
-
-            vertexViewF32[vertexOffset + 0] = tx0;
-            vertexViewF32[vertexOffset + 1] = ty0;
-            vertexViewF32[vertexOffset + 2] = umin;
-            vertexViewF32[vertexOffset + 3] = vmin;
-            vertexViewU32[vertexOffset + 4] = vTintTL;
-            vertexViewF32[vertexOffset + 5] = tx1;
-            vertexViewF32[vertexOffset + 6] = ty1;
-            vertexViewF32[vertexOffset + 7] = umin;
-            vertexViewF32[vertexOffset + 8] = vmax;
-            vertexViewU32[vertexOffset + 9] = vTintBL;
-            vertexViewF32[vertexOffset + 10] = tx2;
-            vertexViewF32[vertexOffset + 11] = ty2;
-            vertexViewF32[vertexOffset + 12] = umax;
-            vertexViewF32[vertexOffset + 13] = vmax;
-            vertexViewU32[vertexOffset + 14] = vTintBR;
-            vertexViewF32[vertexOffset + 15] = tx0;
-            vertexViewF32[vertexOffset + 16] = ty0;
-            vertexViewF32[vertexOffset + 17] = umin;
-            vertexViewF32[vertexOffset + 18] = vmin;
-            vertexViewU32[vertexOffset + 19] = vTintTL;
-            vertexViewF32[vertexOffset + 20] = tx2;
-            vertexViewF32[vertexOffset + 21] = ty2;
-            vertexViewF32[vertexOffset + 22] = umax;
-            vertexViewF32[vertexOffset + 23] = vmax;
-            vertexViewU32[vertexOffset + 24] = vTintBR;
-            vertexViewF32[vertexOffset + 25] = tx3;
-            vertexViewF32[vertexOffset + 26] = ty3;
-            vertexViewF32[vertexOffset + 27] = umax;
-            vertexViewF32[vertexOffset + 28] = vmin;
-            vertexViewU32[vertexOffset + 29] = vTintTR;
-        
-            this.vertexCount += 6;
-        }
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#batchDynamicBitmapText
-     * @since 3.0.0
-     *
-     * @param {Phaser.GameObjects.DynamicBitmapText} bitmapText - [description]
-     * @param {Phaser.Cameras.Scene2D.Camera} camera - [description]
-     */
-    batchDynamicBitmapText: function (bitmapText, camera)
-    {
-        this.renderer.setPipeline(this);
-
-        if (this.vertexCount + 6 > this.vertexCapacity)
-        {
-            this.flush();
-        }
-
-        var roundPixels = this.renderer.config.roundPixels;
-        var displayCallback = bitmapText.displayCallback;
-        var text = bitmapText.text;
-        var textLength = text.length;
-        var getTint = Utils.getTintAppendFloatAlpha;
-        var vertexViewF32 = this.vertexViewF32;
-        var vertexViewU32 = this.vertexViewU32;
-        var renderer = this.renderer;
-        var cameraMatrix = camera.matrix.matrix;
-        var frame = bitmapText.frame;
-        var textureSource = bitmapText.texture.source[frame.sourceIndex];
-        var cameraScrollX = camera.scrollX * bitmapText.scrollFactorX;
-        var cameraScrollY = camera.scrollY * bitmapText.scrollFactorY;
-        var scrollX = bitmapText.scrollX;
-        var scrollY = bitmapText.scrollY;
-        var fontData = bitmapText.fontData;
-        var lineHeight = fontData.lineHeight;
-        var scale = (bitmapText.fontSize / fontData.size);
-        var chars = fontData.chars;
-        var alpha = bitmapText.alpha;
-        var vTintTL = getTint(bitmapText._tintTL, alpha);
-        var vTintTR = getTint(bitmapText._tintTR, alpha);
-        var vTintBL = getTint(bitmapText._tintBL, alpha);
-        var vTintBR = getTint(bitmapText._tintBR, alpha);
-        var srcX = bitmapText.x;
-        var srcY = bitmapText.y;
-        var textureX = frame.cutX;
-        var textureY = frame.cutY;
-        var textureWidth = textureSource.width;
-        var textureHeight = textureSource.height;
-        var texture = textureSource.glTexture;
-        var xAdvance = 0;
-        var yAdvance = 0;
-        var indexCount = 0;
-        var charCode = 0;
-        var glyph = null;
-        var glyphX = 0;
-        var glyphY = 0;
-        var glyphW = 0;
-        var glyphH = 0;
-        var x = 0;
-        var y = 0;
-        var xw = 0;
-        var tx0;
-        var ty0;
-        var tx1;
-        var ty1;
-        var tx2;
-        var ty2;
-        var tx3;
-        var ty3;
-        var yh = 0;
-        var umin = 0;
-        var umax = 0;
-        var vmin = 0;
-        var vmax = 0;
-        var lastGlyph = null;
-        var lastCharCode = 0;
-        var translateX = srcX + frame.x;
-        var translateY = srcY + frame.y;
-        var rotation = -bitmapText.rotation;
-        var scaleX = bitmapText.scaleX;
-        var scaleY = bitmapText.scaleY;
-        var sr = Math.sin(rotation);
-        var cr = Math.cos(rotation);
-        var sra = cr * scaleX;
-        var srb = -sr * scaleX;
-        var src = sr * scaleY;
-        var srd = cr * scaleY;
-        var sre = translateX;
-        var srf = translateY;
-        var cma = cameraMatrix[0];
-        var cmb = cameraMatrix[1];
-        var cmc = cameraMatrix[2];
-        var cmd = cameraMatrix[3];
-        var cme = cameraMatrix[4];
-        var cmf = cameraMatrix[5];
-        var mva = sra * cma + srb * cmc;
-        var mvb = sra * cmb + srb * cmd;
-        var mvc = src * cma + srd * cmc;
-        var mvd = src * cmb + srd * cmd;
-        var mve = sre * cma + srf * cmc + cme;
-        var mvf = sre * cmb + srf * cmd + cmf;
-        var crop = (bitmapText.cropWidth > 0 || bitmapText.cropHeight > 0);
-        var uta, utb, utc, utd, ute, utf;
-        var vertexOffset = 0;
-
-        this.setTexture2D(texture, 0);
-
-        if (crop)
-        {
-            renderer.pushScissor(
-                bitmapText.x,
-                bitmapText.y,
-                bitmapText.cropWidth * bitmapText.scaleX,
-                bitmapText.cropHeight * bitmapText.scaleY
-            );
-        }
-
-        for (var index = 0; index < textLength; ++index)
-        {
-            scale = (bitmapText.fontSize / bitmapText.fontData.size);
-            rotation = 0;
-
-            charCode = text.charCodeAt(index);
-
-            if (charCode === 10)
-            {
-                xAdvance = 0;
-                indexCount = 0;
-                yAdvance += lineHeight;
-                lastGlyph = null;
-                continue;
-            }
-
-            glyph = chars[charCode];
-
-            if (!glyph)
-            {
-                continue;
-            }
-
-            glyphX = textureX + glyph.x;
-            glyphY = textureY + glyph.y;
-
-            glyphW = glyph.width;
-            glyphH = glyph.height;
-            
-            x = (indexCount + glyph.xOffset + xAdvance) - scrollX;
-            y = (glyph.yOffset + yAdvance) - scrollY;
-
-            if (lastGlyph !== null)
-            {
-                var kerningOffset = glyph.kerning[lastCharCode];
-                x += (kerningOffset !== undefined) ? kerningOffset : 0;
-            }
-
-            xAdvance += glyph.xAdvance;
-            indexCount += 1;
-            lastGlyph = glyph;
-            lastCharCode = charCode;
-
-            //  Nothing to render or a space? Then skip to the next glyph
-            if (glyphW === 0 || glyphH === 0 || charCode === 32)
-            {
-                continue;
-            }
-
-            if (displayCallback)
-            {
-                var output = displayCallback({
-                    color: 0,
-                    tint: {
-                        topLeft: vTintTL,
-                        topRight: vTintTR,
-                        bottomLeft: vTintBL,
-                        bottomRight: vTintBR
-                    },
-                    index: index,
-                    charCode: charCode,
-                    x: x,
-                    y: y,
-                    scale: scale,
-                    rotation: 0,
-                    data: glyph.data
-                });
-
-                x = output.x;
-                y = output.y;
-                scale = output.scale;
-                rotation = output.rotation;
-
-                if (output.color)
-                {
-                    vTintTL = output.color;
-                    vTintTR = output.color;
-                    vTintBL = output.color;
-                    vTintBR = output.color;
-                }
-                else
-                {
-                    vTintTL = output.tint.topLeft;
-                    vTintTR = output.tint.topRight;
-                    vTintBL = output.tint.bottomLeft;
-                    vTintBR = output.tint.bottomRight;
-                }
-
-                vTintTL = getTint(vTintTL, alpha);
-                vTintTR = getTint(vTintTR, alpha);
-                vTintBL = getTint(vTintBL, alpha);
-                vTintBR = getTint(vTintBR, alpha);
-            }
-
-            x -= bitmapText.displayOriginX;
-            y -= bitmapText.displayOriginY;
-            x *= scale;
-            y *= scale;
-            x -= cameraScrollX;
-            y -= cameraScrollY;
-
-            sr = Math.sin(-rotation);
-            cr = Math.cos(-rotation);
-            uta = cr * scale;
-            utb = -sr * scale;
-            utc = sr * scale;
-            utd = cr * scale;
-            ute = x;
-            utf = y;
-
-            sra = uta * mva + utb * mvc;
-            srb = uta * mvb + utb * mvd;
-            src = utc * mva + utd * mvc;
-            srd = utc * mvb + utd * mvd;
-            sre = ute * mva + utf * mvc + mve;
-            srf = ute * mvb + utf * mvd + mvf;
-
-            xw = glyphW;
-            yh = glyphH;
-            tx0 = sre;
-            ty0 = srf;
-            tx1 = yh * src + sre;
-            ty1 = yh * srd + srf;
-            tx2 = xw * sra + yh * src + sre;
-            ty2 = xw * srb + yh * srd + srf;
-            tx3 = xw * sra + sre;
-            ty3 = xw * srb + srf;
-
-            umin = glyphX / textureWidth;
-            umax = (glyphX + glyphW) / textureWidth;
-            vmin = glyphY / textureHeight;
-            vmax = (glyphY + glyphH) / textureHeight;
-
-            if (this.vertexCount + 6 > this.vertexCapacity)
-            {
-                this.flush();
-            }
-            
-            vertexOffset = this.vertexCount * this.vertexComponentCount;
-
-            if (roundPixels)
-            {
-                tx0 |= 0;
-                ty0 |= 0;
-                tx1 |= 0;
-                ty1 |= 0;
-                tx2 |= 0;
-                ty2 |= 0;
-                tx3 |= 0;
-                ty3 |= 0;
-            }
-
-            vertexViewF32[vertexOffset + 0] = tx0;
-            vertexViewF32[vertexOffset + 1] = ty0;
-            vertexViewF32[vertexOffset + 2] = umin;
-            vertexViewF32[vertexOffset + 3] = vmin;
-            vertexViewU32[vertexOffset + 4] = vTintTL;
-            vertexViewF32[vertexOffset + 5] = tx1;
-            vertexViewF32[vertexOffset + 6] = ty1;
-            vertexViewF32[vertexOffset + 7] = umin;
-            vertexViewF32[vertexOffset + 8] = vmax;
-            vertexViewU32[vertexOffset + 9] = vTintBL;
-            vertexViewF32[vertexOffset + 10] = tx2;
-            vertexViewF32[vertexOffset + 11] = ty2;
-            vertexViewF32[vertexOffset + 12] = umax;
-            vertexViewF32[vertexOffset + 13] = vmax;
-            vertexViewU32[vertexOffset + 14] = vTintBR;
-            vertexViewF32[vertexOffset + 15] = tx0;
-            vertexViewF32[vertexOffset + 16] = ty0;
-            vertexViewF32[vertexOffset + 17] = umin;
-            vertexViewF32[vertexOffset + 18] = vmin;
-            vertexViewU32[vertexOffset + 19] = vTintTL;
-            vertexViewF32[vertexOffset + 20] = tx2;
-            vertexViewF32[vertexOffset + 21] = ty2;
-            vertexViewF32[vertexOffset + 22] = umax;
-            vertexViewF32[vertexOffset + 23] = vmax;
-            vertexViewU32[vertexOffset + 24] = vTintBR;
-            vertexViewF32[vertexOffset + 25] = tx3;
-            vertexViewF32[vertexOffset + 26] = ty3;
-            vertexViewF32[vertexOffset + 27] = umax;
-            vertexViewF32[vertexOffset + 28] = vmin;
-            vertexViewU32[vertexOffset + 29] = vTintTR;
-        
-            this.vertexCount += 6;
-        }
-
-        if (crop)
-        {
-            renderer.popScissor();
-        }
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#batchText
-     * @since 3.0.0
-     *
-     * @param {Phaser.GameObjects.Text} text - [description]
-     * @param {Phaser.Cameras.Scene2D.Camera} camera - [description]
-     */
-    batchText: function (text, camera)
-    {
-        var getTint = Utils.getTintAppendFloatAlpha;
-
-        this.batchTexture(
-            text,
-            text.canvasTexture,
-            text.canvasTexture.width, text.canvasTexture.height,
-            text.x, text.y,
-            text.canvasTexture.width, text.canvasTexture.height,
-            text.scaleX, text.scaleY,
-            text.rotation,
-            text.flipX, text.flipY,
-            text.scrollFactorX, text.scrollFactorY,
-            text.displayOriginX, text.displayOriginY,
-            0, 0, text.canvasTexture.width, text.canvasTexture.height,
-            getTint(text._tintTL, text._alphaTL),
-            getTint(text._tintTR, text._alphaTR),
-            getTint(text._tintBL, text._alphaBL),
-            getTint(text._tintBR, text._alphaBR),
-            0, 0,
-            camera
-        );
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#batchDynamicTilemapLayer
-     * @since 3.0.0
-     *
-     * @param {Phaser.Tilemaps.DynamicTilemapLayer} tilemapLayer - [description]
-     * @param {Phaser.Cameras.Scene2D.Camera} camera - [description]
-     */
-    batchDynamicTilemapLayer: function (tilemapLayer, camera)
-    {
-        var renderTiles = tilemapLayer.culledTiles;
-        var length = renderTiles.length;
-        var texture = tilemapLayer.tileset.image.get().source.glTexture;
-        var tileset = tilemapLayer.tileset;
-        var scrollFactorX = tilemapLayer.scrollFactorX;
-        var scrollFactorY = tilemapLayer.scrollFactorY;
-        var alpha = tilemapLayer.alpha;
-        var x = tilemapLayer.x;
-        var y = tilemapLayer.y;
-        var sx = tilemapLayer.scaleX;
-        var sy = tilemapLayer.scaleY;
-        var getTint = Utils.getTintAppendFloatAlpha;
-
-        for (var index = 0; index < length; ++index)
-        {
-            var tile = renderTiles[index];
-
-            var tileTexCoords = tileset.getTileTextureCoordinates(tile.index);
-            if (tileTexCoords === null) { continue; }
-
-            var frameWidth = tile.width;
-            var frameHeight = tile.height;
-            var frameX = tileTexCoords.x;
-            var frameY = tileTexCoords.y;
-            var tint = getTint(tile.tint, alpha * tile.alpha);
-
-            this.batchTexture(
-                tilemapLayer,
-                texture,
-                texture.width, texture.height,
-                (tile.width / 2) + x + tile.pixelX * sx, (tile.height / 2) + y + tile.pixelY * sy,
-                tile.width * sx, tile.height * sy,
-                1, 1,
-                tile.rotation,
-                tile.flipX, tile.flipY,
-                scrollFactorX, scrollFactorY,
-                (tile.width / 2), (tile.height / 2),
-                frameX, frameY, frameWidth, frameHeight,
-                tint, tint, tint, tint,
-                0, 0,
-                camera
-            );
-        }
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#batchTileSprite
-     * @since 3.0.0
-     *
-     * @param {Phaser.GameObjects.TileSprite} tileSprite - [description]
-     * @param {Phaser.Cameras.Scene2D.Camera} camera - [description]
-     */
-    batchTileSprite: function (tileSprite, camera)
-    {
-        var getTint = Utils.getTintAppendFloatAlpha;
-
-        this.batchTexture(
-            tileSprite,
-            tileSprite.tileTexture,
-            tileSprite.frame.width, tileSprite.frame.height,
-            tileSprite.x, tileSprite.y,
-            tileSprite.width, tileSprite.height,
-            tileSprite.scaleX, tileSprite.scaleY,
-            tileSprite.rotation,
-            tileSprite.flipX, tileSprite.flipY,
-            tileSprite.scrollFactorX, tileSprite.scrollFactorY,
-            tileSprite.originX * tileSprite.width, tileSprite.originY * tileSprite.height,
-            0, 0, tileSprite.width, tileSprite.height,
-            getTint(tileSprite._tintTL, tileSprite._alphaTL),
-            getTint(tileSprite._tintTR, tileSprite._alphaTR),
-            getTint(tileSprite._tintBL, tileSprite._alphaBL),
-            getTint(tileSprite._tintBR, tileSprite._alphaBR),
-            tileSprite.tilePositionX / tileSprite.frame.width,
-            tileSprite.tilePositionY / tileSprite.frame.height,
-            camera
-        );
-    },
-
-    /**
-     * [description]
-     *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#batchTexture
-     * @since 3.0.0
-     *
-     * @param {Phaser.GameObjects.GameObject} gameObject - [description]
-     * @param {WebGLTexture} texture - [description]
-     * @param {integer} textureWidth - [description]
-     * @param {integer} textureHeight - [description]
-     * @param {float} srcX - [description]
-     * @param {float} srcY - [description]
-     * @param {float} srcWidth - [description]
-     * @param {float} srcHeight - [description]
-     * @param {float} scaleX - [description]
-     * @param {float} scaleY - [description]
-     * @param {float} rotation - [description]
-     * @param {boolean} flipX - [description]
-     * @param {boolean} flipY - [description]
-     * @param {float} scrollFactorX - [description]
-     * @param {float} scrollFactorY - [description]
-     * @param {float} displayOriginX - [description]
-     * @param {float} displayOriginY - [description]
-     * @param {float} frameX - [description]
-     * @param {float} frameY - [description]
-     * @param {float} frameWidth - [description]
-     * @param {float} frameHeight - [description]
-     * @param {integer} tintTL - [description]
-     * @param {integer} tintTR - [description]
-     * @param {integer} tintBL - [description]
-     * @param {integer} tintBR - [description]
-     * @param {float} uOffset - [description]
-     * @param {float} vOffset - [description]
-     * @param {Phaser.Cameras.Scene2D.Camera} camera - [description]
+     * @param {Phaser.GameObjects.GameObject} gameObject - Source GameObject.
+     * @param {WebGLTexture} texture - Raw WebGLTexture associated with the quad.
+     * @param {integer} textureWidth - Real texture width.
+     * @param {integer} textureHeight - Real texture height.
+     * @param {number} srcX - X coordinate of the quad.
+     * @param {number} srcY - Y coordinate of the quad.
+     * @param {number} srcWidth - Width of the quad.
+     * @param {number} srcHeight - Height of the quad.
+     * @param {number} scaleX - X component of scale.
+     * @param {number} scaleY - Y component of scale.
+     * @param {number} rotation - Rotation of the quad.
+     * @param {boolean} flipX - Indicates if the quad is horizontally flipped.
+     * @param {boolean} flipY - Indicates if the quad is vertically flipped.
+     * @param {number} scrollFactorX - By which factor is the quad affected by the camera horizontal scroll.
+     * @param {number} scrollFactorY - By which factor is the quad effected by the camera vertical scroll.
+     * @param {number} displayOriginX - Horizontal origin in pixels.
+     * @param {number} displayOriginY - Vertical origin in pixels.
+     * @param {number} frameX - X coordinate of the texture frame.
+     * @param {number} frameY - Y coordinate of the texture frame.
+     * @param {number} frameWidth - Width of the texture frame.
+     * @param {number} frameHeight - Height of the texture frame.
+     * @param {integer} tintTL - Tint for top left.
+     * @param {integer} tintTR - Tint for top right.
+     * @param {integer} tintBL - Tint for bottom left.
+     * @param {integer} tintBR - Tint for bottom right.
+     * @param {number} tintEffect - The tint effect.
+     * @param {number} uOffset - Horizontal offset on texture coordinate.
+     * @param {number} vOffset - Vertical offset on texture coordinate.
+     * @param {Phaser.Cameras.Scene2D.Camera} camera - Current used camera.
+     * @param {Phaser.GameObjects.Components.TransformMatrix} parentTransformMatrix - Parent container.
+     * @param {boolean} [skipFlip=false] - Skip the renderTexture check.
      */
     batchTexture: function (
         gameObject,
@@ -1578,247 +894,607 @@ var TextureTintPipeline = new Class({
         scrollFactorX, scrollFactorY,
         displayOriginX, displayOriginY,
         frameX, frameY, frameWidth, frameHeight,
-        tintTL, tintTR, tintBL, tintBR,
+        tintTL, tintTR, tintBL, tintBR, tintEffect,
         uOffset, vOffset,
-        camera)
+        camera,
+        parentTransformMatrix,
+        skipFlip)
     {
-        this.renderer.setPipeline(this);
+        this.renderer.setPipeline(this, gameObject);
 
-        if (this.vertexCount + 6 > this.vertexCapacity)
-        {
-            this.flush();
-        }
+        var camMatrix = this._tempMatrix1;
+        var spriteMatrix = this._tempMatrix2;
+        var calcMatrix = this._tempMatrix3;
 
-        flipY = flipY ^ (texture.isRenderTexture ? 1 : 0);
-        rotation = -rotation;
-
-        var roundPixels = this.renderer.config.roundPixels;
-        var vertexViewF32 = this.vertexViewF32;
-        var vertexViewU32 = this.vertexViewU32;
-        var cameraMatrix = camera.matrix.matrix;
-        var width = srcWidth * (flipX ? -1.0 : 1.0);
-        var height = srcHeight * (flipY ? -1.0 : 1.0);
-        var x = -displayOriginX + ((srcWidth) * (flipX ? 1.0 : 0.0));
-        var y = -displayOriginY + ((srcHeight) * (flipY ? 1.0 : 0.0));
-        var xw = x + width;
-        var yh = y + height;
-        var translateX = srcX - camera.scrollX * scrollFactorX;
-        var translateY = srcY - camera.scrollY * scrollFactorY;
-        var sr = Math.sin(rotation);
-        var cr = Math.cos(rotation);
-        var sra = cr * scaleX;
-        var srb = -sr * scaleX;
-        var src = sr * scaleY;
-        var srd = cr * scaleY;
-        var sre = translateX;
-        var srf = translateY;
-        var cma = cameraMatrix[0];
-        var cmb = cameraMatrix[1];
-        var cmc = cameraMatrix[2];
-        var cmd = cameraMatrix[3];
-        var cme = cameraMatrix[4];
-        var cmf = cameraMatrix[5];
-        var mva = sra * cma + srb * cmc;
-        var mvb = sra * cmb + srb * cmd;
-        var mvc = src * cma + srd * cmc;
-        var mvd = src * cmb + srd * cmd;
-        var mve = sre * cma + srf * cmc + cme;
-        var mvf = sre * cmb + srf * cmd + cmf;
-        var tx0 = x * mva + y * mvc + mve;
-        var ty0 = x * mvb + y * mvd + mvf;
-        var tx1 = x * mva + yh * mvc + mve;
-        var ty1 = x * mvb + yh * mvd + mvf;
-        var tx2 = xw * mva + yh * mvc + mve;
-        var ty2 = xw * mvb + yh * mvd + mvf;
-        var tx3 = xw * mva + y * mvc + mve;
-        var ty3 = xw * mvb + y * mvd + mvf;
-        var vertexOffset = 0;
         var u0 = (frameX / textureWidth) + uOffset;
         var v0 = (frameY / textureHeight) + vOffset;
         var u1 = (frameX + frameWidth) / textureWidth + uOffset;
         var v1 = (frameY + frameHeight) / textureHeight + vOffset;
-        
-        this.setTexture2D(texture, 0);
 
-        vertexOffset = this.vertexCount * this.vertexComponentCount;
+        var width = srcWidth;
+        var height = srcHeight;
 
-        if (roundPixels)
+        var x = -displayOriginX;
+        var y = -displayOriginY;
+
+        if (gameObject.isCropped)
         {
-            tx0 |= 0;
-            ty0 |= 0;
-            tx1 |= 0;
-            ty1 |= 0;
-            tx2 |= 0;
-            ty2 |= 0;
-            tx3 |= 0;
-            ty3 |= 0;
+            var crop = gameObject._crop;
+
+            width = crop.width;
+            height = crop.height;
+
+            srcWidth = crop.width;
+            srcHeight = crop.height;
+
+            frameX = crop.x;
+            frameY = crop.y;
+
+            var ox = frameX;
+            var oy = frameY;
+
+            if (flipX)
+            {
+                ox = (frameWidth - crop.x - crop.width);
+            }
+    
+            if (flipY && !texture.isRenderTexture)
+            {
+                oy = (frameHeight - crop.y - crop.height);
+            }
+
+            u0 = (ox / textureWidth) + uOffset;
+            v0 = (oy / textureHeight) + vOffset;
+            u1 = (ox + crop.width) / textureWidth + uOffset;
+            v1 = (oy + crop.height) / textureHeight + vOffset;
+
+            x = -displayOriginX + frameX;
+            y = -displayOriginY + frameY;
         }
 
-        vertexViewF32[vertexOffset + 0] = tx0;
-        vertexViewF32[vertexOffset + 1] = ty0;
-        vertexViewF32[vertexOffset + 2] = u0;
-        vertexViewF32[vertexOffset + 3] = v0;
-        vertexViewU32[vertexOffset + 4] = tintTL;
-        vertexViewF32[vertexOffset + 5] = tx1;
-        vertexViewF32[vertexOffset + 6] = ty1;
-        vertexViewF32[vertexOffset + 7] = u0;
-        vertexViewF32[vertexOffset + 8] = v1;
-        vertexViewU32[vertexOffset + 9] = tintTR;
-        vertexViewF32[vertexOffset + 10] = tx2;
-        vertexViewF32[vertexOffset + 11] = ty2;
-        vertexViewF32[vertexOffset + 12] = u1;
-        vertexViewF32[vertexOffset + 13] = v1;
-        vertexViewU32[vertexOffset + 14] = tintBL;
-        vertexViewF32[vertexOffset + 15] = tx0;
-        vertexViewF32[vertexOffset + 16] = ty0;
-        vertexViewF32[vertexOffset + 17] = u0;
-        vertexViewF32[vertexOffset + 18] = v0;
-        vertexViewU32[vertexOffset + 19] = tintTL;
-        vertexViewF32[vertexOffset + 20] = tx2;
-        vertexViewF32[vertexOffset + 21] = ty2;
-        vertexViewF32[vertexOffset + 22] = u1;
-        vertexViewF32[vertexOffset + 23] = v1;
-        vertexViewU32[vertexOffset + 24] = tintBL;
-        vertexViewF32[vertexOffset + 25] = tx3;
-        vertexViewF32[vertexOffset + 26] = ty3;
-        vertexViewF32[vertexOffset + 27] = u1;
-        vertexViewF32[vertexOffset + 28] = v0;
-        vertexViewU32[vertexOffset + 29] = tintBR;
+        //  Invert the flipY if this is a RenderTexture
+        flipY = flipY ^ (!skipFlip && texture.isRenderTexture ? 1 : 0);
 
-        this.vertexCount += 6;
+        if (flipX)
+        {
+            width *= -1;
+            x += srcWidth;
+        }
+
+        if (flipY)
+        {
+            height *= -1;
+            y += srcHeight;
+        }
+
+        var xw = x + width;
+        var yh = y + height;
+
+        spriteMatrix.applyITRS(srcX, srcY, rotation, scaleX, scaleY);
+
+        camMatrix.copyFrom(camera.matrix);
+
+        if (parentTransformMatrix)
+        {
+            //  Multiply the camera by the parent matrix
+            camMatrix.multiplyWithOffset(parentTransformMatrix, -camera.scrollX * scrollFactorX, -camera.scrollY * scrollFactorY);
+
+            //  Undo the camera scroll
+            spriteMatrix.e = srcX;
+            spriteMatrix.f = srcY;
+
+            //  Multiply by the Sprite matrix, store result in calcMatrix
+            camMatrix.multiply(spriteMatrix, calcMatrix);
+        }
+        else
+        {
+            spriteMatrix.e -= camera.scrollX * scrollFactorX;
+            spriteMatrix.f -= camera.scrollY * scrollFactorY;
+    
+            //  Multiply by the Sprite matrix, store result in calcMatrix
+            camMatrix.multiply(spriteMatrix, calcMatrix);
+        }
+
+        var tx0 = calcMatrix.getX(x, y);
+        var ty0 = calcMatrix.getY(x, y);
+
+        var tx1 = calcMatrix.getX(x, yh);
+        var ty1 = calcMatrix.getY(x, yh);
+
+        var tx2 = calcMatrix.getX(xw, yh);
+        var ty2 = calcMatrix.getY(xw, yh);
+
+        var tx3 = calcMatrix.getX(xw, y);
+        var ty3 = calcMatrix.getY(xw, y);
+
+        if (camera.roundPixels)
+        {
+            tx0 = Math.round(tx0);
+            ty0 = Math.round(ty0);
+
+            tx1 = Math.round(tx1);
+            ty1 = Math.round(ty1);
+
+            tx2 = Math.round(tx2);
+            ty2 = Math.round(ty2);
+
+            tx3 = Math.round(tx3);
+            ty3 = Math.round(ty3);
+        }
+
+        this.setTexture2D(texture, 0);
+
+        this.batchQuad(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, u0, v0, u1, v1, tintTL, tintTR, tintBL, tintBR, tintEffect, texture, 0);
     },
 
     /**
-     * Immediately draws a texture with no batching.
+     * Adds a Texture Frame into the batch for rendering.
      *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#drawTexture
-     * @since 3.2.0
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#batchTextureFrame
+     * @since 3.12.0
      *
-     * @param {WebGLTexture} texture [description]
-     * @param {number} srcX - [description]
-     * @param {number} srcY - [description]
-     * @param {number} tint - [description]
-     * @param {number} alpha - [description]
-     * @param {number} frameX - [description]
-     * @param {number} frameY - [description]
-     * @param {number} frameWidth - [description]
-     * @param {number} frameHeight - [description]
-     * @param {Phaser.GameObjects.Components.TransformMatrix} transformMatrix - [description]
-     *
-     * @return {Phaser.Renderer.WebGL.TextureTintPipeline} This Pipeline.
+     * @param {Phaser.Textures.Frame} frame - The Texture Frame to be rendered.
+     * @param {number} x - The horizontal position to render the texture at.
+     * @param {number} y - The vertical position to render the texture at.
+     * @param {number} tint - The tint color.
+     * @param {number} alpha - The alpha value.
+     * @param {Phaser.GameObjects.Components.TransformMatrix} transformMatrix - The Transform Matrix to use for the texture.
+     * @param {Phaser.GameObjects.Components.TransformMatrix} [parentTransformMatrix] - A parent Transform Matrix.
      */
-    drawTexture: function (
-        texture,
-        srcX, srcY,
+    batchTextureFrame: function (
+        frame,
+        x, y,
         tint, alpha,
-        frameX, frameY, frameWidth, frameHeight,
-        transformMatrix
+        transformMatrix,
+        parentTransformMatrix
     )
     {
         this.renderer.setPipeline(this);
 
-        if (this.vertexCount + 6 > this.vertexCapacity)
+        var spriteMatrix = this._tempMatrix1.copyFrom(transformMatrix);
+        var calcMatrix = this._tempMatrix2;
+
+        var xw = x + frame.width;
+        var yh = y + frame.height;
+
+        if (parentTransformMatrix)
         {
-            this.flush();
+            spriteMatrix.multiply(parentTransformMatrix, calcMatrix);
+        }
+        else
+        {
+            calcMatrix = spriteMatrix;
         }
 
-        var roundPixels = this.renderer.config.roundPixels;
-        var vertexViewF32 = this.vertexViewF32;
-        var vertexViewU32 = this.vertexViewU32;
-        var width = frameWidth;
-        var height = frameHeight;
-        var x = srcX;
-        var y = srcY;
-        var xw = x + width;
-        var yh = y + height;
-        var mva = transformMatrix[0];
-        var mvb = transformMatrix[1];
-        var mvc = transformMatrix[2];
-        var mvd = transformMatrix[3];
-        var mve = transformMatrix[4];
-        var mvf = transformMatrix[5];
-        var tx0 = x * mva + y * mvc + mve;
-        var ty0 = x * mvb + y * mvd + mvf;
-        var tx1 = x * mva + yh * mvc + mve;
-        var ty1 = x * mvb + yh * mvd + mvf;
-        var tx2 = xw * mva + yh * mvc + mve;
-        var ty2 = xw * mvb + yh * mvd + mvf;
-        var tx3 = xw * mva + y * mvc + mve;
-        var ty3 = xw * mvb + y * mvd + mvf;
-        var vertexOffset = 0;
-        var textureWidth = texture.width;
-        var textureHeight = texture.height;
-        var u0 = (frameX / textureWidth);
-        var v0 = (frameY / textureHeight);
-        var u1 = (frameX + frameWidth) / textureWidth;
-        var v1 = (frameY + frameHeight) / textureHeight;
+        var tx0 = calcMatrix.getX(x, y);
+        var ty0 = calcMatrix.getY(x, y);
+
+        var tx1 = calcMatrix.getX(x, yh);
+        var ty1 = calcMatrix.getY(x, yh);
+
+        var tx2 = calcMatrix.getX(xw, yh);
+        var ty2 = calcMatrix.getY(xw, yh);
+
+        var tx3 = calcMatrix.getX(xw, y);
+        var ty3 = calcMatrix.getY(xw, y);
+
+        this.setTexture2D(frame.glTexture, 0);
+
         tint = Utils.getTintAppendFloatAlpha(tint, alpha);
-        
-        this.setTexture2D(texture, 0);
 
-        vertexOffset = this.vertexCount * this.vertexComponentCount;
-
-        if (roundPixels)
-        {
-            tx0 |= 0;
-            ty0 |= 0;
-            tx1 |= 0;
-            ty1 |= 0;
-            tx2 |= 0;
-            ty2 |= 0;
-            tx3 |= 0;
-            ty3 |= 0;
-        }
-
-        vertexViewF32[vertexOffset + 0] = tx0;
-        vertexViewF32[vertexOffset + 1] = ty0;
-        vertexViewF32[vertexOffset + 2] = u0;
-        vertexViewF32[vertexOffset + 3] = v0;
-        vertexViewU32[vertexOffset + 4] = tint;
-        vertexViewF32[vertexOffset + 5] = tx1;
-        vertexViewF32[vertexOffset + 6] = ty1;
-        vertexViewF32[vertexOffset + 7] = u0;
-        vertexViewF32[vertexOffset + 8] = v1;
-        vertexViewU32[vertexOffset + 9] = tint;
-        vertexViewF32[vertexOffset + 10] = tx2;
-        vertexViewF32[vertexOffset + 11] = ty2;
-        vertexViewF32[vertexOffset + 12] = u1;
-        vertexViewF32[vertexOffset + 13] = v1;
-        vertexViewU32[vertexOffset + 14] = tint;
-        vertexViewF32[vertexOffset + 15] = tx0;
-        vertexViewF32[vertexOffset + 16] = ty0;
-        vertexViewF32[vertexOffset + 17] = u0;
-        vertexViewF32[vertexOffset + 18] = v0;
-        vertexViewU32[vertexOffset + 19] = tint;
-        vertexViewF32[vertexOffset + 20] = tx2;
-        vertexViewF32[vertexOffset + 21] = ty2;
-        vertexViewF32[vertexOffset + 22] = u1;
-        vertexViewF32[vertexOffset + 23] = v1;
-        vertexViewU32[vertexOffset + 24] = tint;
-        vertexViewF32[vertexOffset + 25] = tx3;
-        vertexViewF32[vertexOffset + 26] = ty3;
-        vertexViewF32[vertexOffset + 27] = u1;
-        vertexViewF32[vertexOffset + 28] = v0;
-        vertexViewU32[vertexOffset + 29] = tint;
-
-        this.vertexCount += 6;
-
-        // Force an immediate draw
-        this.flush();
+        this.batchQuad(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, frame.u0, frame.v0, frame.u1, frame.v1, tint, tint, tint, tint, 0, frame.glTexture, 0);
     },
 
     /**
-     * [description]
+     * Pushes a filled rectangle into the vertex batch.
+     * Rectangle has no transform values and isn't transformed into the local space.
+     * Used for directly batching untransformed rectangles, such as Camera background colors.
      *
-     * @method Phaser.Renderer.WebGL.TextureTintPipeline#batchGraphics
-     * @since 3.0.0
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#drawFillRect
+     * @since 3.12.0
      *
-     * @param {Phaser.GameObjects.Graphics} graphics - [description]
-     * @param {Phaser.Cameras.Scene2D.Camera} camera - [description]
+     * @param {number} x - Horizontal top left coordinate of the rectangle.
+     * @param {number} y - Vertical top left coordinate of the rectangle.
+     * @param {number} width - Width of the rectangle.
+     * @param {number} height - Height of the rectangle.
+     * @param {number} color - Color of the rectangle to draw.
+     * @param {number} alpha - Alpha value of the rectangle to draw.
      */
-    batchGraphics: function ()
+    drawFillRect: function (x, y, width, height, color, alpha)
     {
-        // Stub
+        var xw = x + width;
+        var yh = y + height;
+
+        this.setTexture2D();
+
+        var tint = Utils.getTintAppendFloatAlphaAndSwap(color, alpha);
+
+        this.batchQuad(x, y, x, yh, xw, yh, xw, y, 0, 0, 1, 1, tint, tint, tint, tint, 2);
+    },
+
+    /**
+     * Pushes a filled rectangle into the vertex batch.
+     * Rectangle factors in the given transform matrices before adding to the batch.
+     *
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#batchFillRect
+     * @since 3.12.0
+     *
+     * @param {number} x - Horizontal top left coordinate of the rectangle.
+     * @param {number} y - Vertical top left coordinate of the rectangle.
+     * @param {number} width - Width of the rectangle.
+     * @param {number} height - Height of the rectangle.
+     * @param {Phaser.GameObjects.Components.TransformMatrix} currentMatrix - The current transform.
+     * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - The parent transform.
+     */
+    batchFillRect: function (x, y, width, height, currentMatrix, parentMatrix)
+    {
+        this.renderer.setPipeline(this);
+
+        var calcMatrix = this._tempMatrix3;
+
+        //  Multiply and store result in calcMatrix, only if the parentMatrix is set, otherwise we'll use whatever values are already in the calcMatrix
+        if (parentMatrix)
+        {
+            parentMatrix.multiply(currentMatrix, calcMatrix);
+        }
+        
+        var xw = x + width;
+        var yh = y + height;
+
+        var x0 = calcMatrix.getX(x, y);
+        var y0 = calcMatrix.getY(x, y);
+
+        var x1 = calcMatrix.getX(x, yh);
+        var y1 = calcMatrix.getY(x, yh);
+
+        var x2 = calcMatrix.getX(xw, yh);
+        var y2 = calcMatrix.getY(xw, yh);
+
+        var x3 = calcMatrix.getX(xw, y);
+        var y3 = calcMatrix.getY(xw, y);
+
+        var frame = this.currentFrame;
+
+        var u0 = frame.u0;
+        var v0 = frame.v0;
+        var u1 = frame.u1;
+        var v1 = frame.v1;
+
+        this.batchQuad(x0, y0, x1, y1, x2, y2, x3, y3, u0, v0, u1, v1, this.fillTint.TL, this.fillTint.TR, this.fillTint.BL, this.fillTint.BR, this.tintEffect);
+    },
+
+    /**
+     * Pushes a filled triangle into the vertex batch.
+     * Triangle factors in the given transform matrices before adding to the batch.
+     *
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#batchFillTriangle
+     * @since 3.12.0
+     *
+     * @param {number} x0 - Point 0 x coordinate.
+     * @param {number} y0 - Point 0 y coordinate.
+     * @param {number} x1 - Point 1 x coordinate.
+     * @param {number} y1 - Point 1 y coordinate.
+     * @param {number} x2 - Point 2 x coordinate.
+     * @param {number} y2 - Point 2 y coordinate.
+     * @param {Phaser.GameObjects.Components.TransformMatrix} currentMatrix - The current transform.
+     * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - The parent transform.
+     */
+    batchFillTriangle: function (x0, y0, x1, y1, x2, y2, currentMatrix, parentMatrix)
+    {
+        this.renderer.setPipeline(this);
+
+        var calcMatrix = this._tempMatrix3;
+
+        //  Multiply and store result in calcMatrix, only if the parentMatrix is set, otherwise we'll use whatever values are already in the calcMatrix
+        if (parentMatrix)
+        {
+            parentMatrix.multiply(currentMatrix, calcMatrix);
+        }
+        
+        var tx0 = calcMatrix.getX(x0, y0);
+        var ty0 = calcMatrix.getY(x0, y0);
+
+        var tx1 = calcMatrix.getX(x1, y1);
+        var ty1 = calcMatrix.getY(x1, y1);
+
+        var tx2 = calcMatrix.getX(x2, y2);
+        var ty2 = calcMatrix.getY(x2, y2);
+
+        var frame = this.currentFrame;
+
+        var u0 = frame.u0;
+        var v0 = frame.v0;
+        var u1 = frame.u1;
+        var v1 = frame.v1;
+
+        this.batchTri(tx0, ty0, tx1, ty1, tx2, ty2, u0, v0, u1, v1, this.fillTint.TL, this.fillTint.TR, this.fillTint.BL, this.tintEffect);
+    },
+
+    /**
+     * Pushes a stroked triangle into the vertex batch.
+     * Triangle factors in the given transform matrices before adding to the batch.
+     * The triangle is created from 3 lines and drawn using the `batchStrokePath` method.
+     *
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#batchStrokeTriangle
+     * @since 3.12.0
+     *
+     * @param {number} x0 - Point 0 x coordinate.
+     * @param {number} y0 - Point 0 y coordinate.
+     * @param {number} x1 - Point 1 x coordinate.
+     * @param {number} y1 - Point 1 y coordinate.
+     * @param {number} x2 - Point 2 x coordinate.
+     * @param {number} y2 - Point 2 y coordinate.
+     * @param {number} lineWidth - The width of the line in pixels.
+     * @param {Phaser.GameObjects.Components.TransformMatrix} currentMatrix - The current transform.
+     * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - The parent transform.
+     */
+    batchStrokeTriangle: function (x0, y0, x1, y1, x2, y2, lineWidth, currentMatrix, parentMatrix)
+    {
+        var tempTriangle = this.tempTriangle;
+
+        tempTriangle[0].x = x0;
+        tempTriangle[0].y = y0;
+        tempTriangle[0].width = lineWidth;
+
+        tempTriangle[1].x = x1;
+        tempTriangle[1].y = y1;
+        tempTriangle[1].width = lineWidth;
+
+        tempTriangle[2].x = x2;
+        tempTriangle[2].y = y2;
+        tempTriangle[2].width = lineWidth;
+
+        tempTriangle[3].x = x0;
+        tempTriangle[3].y = y0;
+        tempTriangle[3].width = lineWidth;
+
+        this.batchStrokePath(tempTriangle, lineWidth, false, currentMatrix, parentMatrix);
+    },
+
+    /**
+     * Adds the given path to the vertex batch for rendering.
+     * 
+     * It works by taking the array of path data and then passing it through Earcut, which
+     * creates a list of polygons. Each polygon is then added to the batch.
+     * 
+     * The path is always automatically closed because it's filled.
+     *
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#batchFillPath
+     * @since 3.12.0
+     *
+     * @param {array} path - Collection of points that represent the path.
+     * @param {Phaser.GameObjects.Components.TransformMatrix} currentMatrix - The current transform.
+     * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - The parent transform.
+     */
+    batchFillPath: function (path, currentMatrix, parentMatrix)
+    {
+        this.renderer.setPipeline(this);
+
+        var calcMatrix = this._tempMatrix3;
+
+        //  Multiply and store result in calcMatrix, only if the parentMatrix is set, otherwise we'll use whatever values are already in the calcMatrix
+        if (parentMatrix)
+        {
+            parentMatrix.multiply(currentMatrix, calcMatrix);
+        }
+
+        var length = path.length;
+        var polygonCache = this.polygonCache;
+        var polygonIndexArray;
+        var point;
+
+        var tintTL = this.fillTint.TL;
+        var tintTR = this.fillTint.TR;
+        var tintBL = this.fillTint.BL;
+        var tintEffect = this.tintEffect;
+
+        for (var pathIndex = 0; pathIndex < length; ++pathIndex)
+        {
+            point = path[pathIndex];
+            polygonCache.push(point.x, point.y);
+        }
+
+        polygonIndexArray = Earcut(polygonCache);
+        length = polygonIndexArray.length;
+
+        var frame = this.currentFrame;
+
+        for (var index = 0; index < length; index += 3)
+        {
+            var p0 = polygonIndexArray[index + 0] * 2;
+            var p1 = polygonIndexArray[index + 1] * 2;
+            var p2 = polygonIndexArray[index + 2] * 2;
+
+            var x0 = polygonCache[p0 + 0];
+            var y0 = polygonCache[p0 + 1];
+            var x1 = polygonCache[p1 + 0];
+            var y1 = polygonCache[p1 + 1];
+            var x2 = polygonCache[p2 + 0];
+            var y2 = polygonCache[p2 + 1];
+
+            var tx0 = calcMatrix.getX(x0, y0);
+            var ty0 = calcMatrix.getY(x0, y0);
+    
+            var tx1 = calcMatrix.getX(x1, y1);
+            var ty1 = calcMatrix.getY(x1, y1);
+    
+            var tx2 = calcMatrix.getX(x2, y2);
+            var ty2 = calcMatrix.getY(x2, y2);
+
+            var u0 = frame.u0;
+            var v0 = frame.v0;
+            var u1 = frame.u1;
+            var v1 = frame.v1;
+        
+            this.batchTri(tx0, ty0, tx1, ty1, tx2, ty2, u0, v0, u1, v1, tintTL, tintTR, tintBL, tintEffect);
+        }
+
+        polygonCache.length = 0;
+    },
+
+    /**
+     * Adds the given path to the vertex batch for rendering.
+     * 
+     * It works by taking the array of path data and calling `batchLine` for each section
+     * of the path.
+     * 
+     * The path is optionally closed at the end.
+     *
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#batchStrokePath
+     * @since 3.12.0
+     *
+     * @param {array} path - Collection of points that represent the path.
+     * @param {number} lineWidth - The width of the line segments in pixels.
+     * @param {boolean} pathOpen - Indicates if the path should be closed or left open.
+     * @param {Phaser.GameObjects.Components.TransformMatrix} currentMatrix - The current transform.
+     * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - The parent transform.
+     */
+    batchStrokePath: function (path, lineWidth, pathOpen, currentMatrix, parentMatrix)
+    {
+        this.renderer.setPipeline(this);
+
+        //  Reset the closePath booleans
+        this.prevQuad[4] = 0;
+        this.firstQuad[4] = 0;
+
+        var pathLength = path.length - 1;
+
+        for (var pathIndex = 0; pathIndex < pathLength; pathIndex++)
+        {
+            var point0 = path[pathIndex];
+            var point1 = path[pathIndex + 1];
+
+            this.batchLine(
+                point0.x,
+                point0.y,
+                point1.x,
+                point1.y,
+                point0.width / 2,
+                point1.width / 2,
+                lineWidth,
+                pathIndex,
+                !pathOpen && (pathIndex === pathLength - 1),
+                currentMatrix,
+                parentMatrix
+            );
+        }
+    },
+
+    /**
+     * Creates a quad and adds it to the vertex batch based on the given line values.
+     *
+     * @method Phaser.Renderer.WebGL.Pipelines.TextureTintPipeline#batchLine
+     * @since 3.12.0
+     *
+     * @param {number} ax - X coordinate to the start of the line
+     * @param {number} ay - Y coordinate to the start of the line
+     * @param {number} bx - X coordinate to the end of the line
+     * @param {number} by - Y coordinate to the end of the line
+     * @param {number} aLineWidth - Width of the start of the line
+     * @param {number} bLineWidth - Width of the end of the line
+     * @param {Float32Array} currentMatrix - Parent matrix, generally used by containers
+     */
+    batchLine: function (ax, ay, bx, by, aLineWidth, bLineWidth, lineWidth, index, closePath, currentMatrix, parentMatrix)
+    {
+        this.renderer.setPipeline(this);
+
+        var calcMatrix = this._tempMatrix3;
+
+        //  Multiply and store result in calcMatrix, only if the parentMatrix is set, otherwise we'll use whatever values are already in the calcMatrix
+        if (parentMatrix)
+        {
+            parentMatrix.multiply(currentMatrix, calcMatrix);
+        }
+
+        var dx = bx - ax;
+        var dy = by - ay;
+
+        var len = Math.sqrt(dx * dx + dy * dy);
+        var al0 = aLineWidth * (by - ay) / len;
+        var al1 = aLineWidth * (ax - bx) / len;
+        var bl0 = bLineWidth * (by - ay) / len;
+        var bl1 = bLineWidth * (ax - bx) / len;
+
+        var lx0 = bx - bl0;
+        var ly0 = by - bl1;
+        var lx1 = ax - al0;
+        var ly1 = ay - al1;
+        var lx2 = bx + bl0;
+        var ly2 = by + bl1;
+        var lx3 = ax + al0;
+        var ly3 = ay + al1;
+
+        //  tx0 = bottom right
+        var brX = calcMatrix.getX(lx0, ly0);
+        var brY = calcMatrix.getY(lx0, ly0);
+
+        //  tx1 = bottom left
+        var blX = calcMatrix.getX(lx1, ly1);
+        var blY = calcMatrix.getY(lx1, ly1);
+
+        //  tx2 = top right
+        var trX = calcMatrix.getX(lx2, ly2);
+        var trY = calcMatrix.getY(lx2, ly2);
+
+        //  tx3 = top left
+        var tlX = calcMatrix.getX(lx3, ly3);
+        var tlY = calcMatrix.getY(lx3, ly3);
+
+        var tint = this.strokeTint;
+        var tintEffect = this.tintEffect;
+
+        var tintTL = tint.TL;
+        var tintTR = tint.TR;
+        var tintBL = tint.BL;
+        var tintBR = tint.BR;
+
+        var frame = this.currentFrame;
+
+        var u0 = frame.u0;
+        var v0 = frame.v0;
+        var u1 = frame.u1;
+        var v1 = frame.v1;
+
+        //  TL, BL, BR, TR
+        this.batchQuad(tlX, tlY, blX, blY, brX, brY, trX, trY, u0, v0, u1, v1, tintTL, tintTR, tintBL, tintBR, tintEffect);
+
+        if (lineWidth <= 2)
+        {
+            //  No point doing a linejoin if the line isn't thick enough
+            return;
+        }
+
+        var prev = this.prevQuad;
+        var first = this.firstQuad;
+
+        if (index > 0 && prev[4])
+        {
+            this.batchQuad(tlX, tlY, blX, blY, prev[0], prev[1], prev[2], prev[3], u0, v0, u1, v1, tintTL, tintTR, tintBL, tintBR, tintEffect);
+        }
+        else
+        {
+            first[0] = tlX;
+            first[1] = tlY;
+            first[2] = blX;
+            first[3] = blY;
+            first[4] = 1;
+        }
+
+        if (closePath && first[4])
+        {
+            //  Add a join for the final path segment
+            this.batchQuad(brX, brY, trX, trY, first[0], first[1], first[2], first[3], u0, v0, u1, v1, tintTL, tintTR, tintBL, tintBR, tintEffect);
+        }
+        else
+        {
+            //  Store it
+
+            prev[0] = brX;
+            prev[1] = brY;
+            prev[2] = trX;
+            prev[3] = trY;
+            prev[4] = 1;
+        }
     }
 
 });

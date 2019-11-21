@@ -1,11 +1,15 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var GetTilesWithin = require('./GetTilesWithin');
 var Color = require('../../display/color');
+
+var defaultTileColor = new Color(105, 210, 231, 150);
+var defaultCollidingTileColor = new Color(243, 134, 48, 200);
+var defaultFaceColor = new Color(40, 39, 37, 150);
 
 /**
  * Draws a debug representation of the layer to the given Graphics. This is helpful when you want to
@@ -14,15 +18,16 @@ var Color = require('../../display/color');
  * wherever you want on the screen.
  *
  * @function Phaser.Tilemaps.Components.RenderDebug
+ * @private
  * @since 3.0.0
  *
  * @param {Phaser.GameObjects.Graphics} graphics - The target Graphics object to draw upon.
  * @param {object} styleConfig - An object specifying the colors to use for the debug drawing.
- * @param {Color|null} [styleConfig.tileColor=blue] - Color to use for drawing a filled rectangle at
+ * @param {?Phaser.Display.Color} [styleConfig.tileColor=blue] - Color to use for drawing a filled rectangle at
  * non-colliding tile locations. If set to null, non-colliding tiles will not be drawn.
- * @param {Color|null} [styleConfig.collidingTileColor=orange] - Color to use for drawing a filled
+ * @param {?Phaser.Display.Color} [styleConfig.collidingTileColor=orange] - Color to use for drawing a filled
  * rectangle at colliding tile locations. If set to null, colliding tiles will not be drawn.
- * @param {Color|null} [styleConfig.faceColor=grey] - Color to use for drawing a line at interesting
+ * @param {?Phaser.Display.Color} [styleConfig.faceColor=grey] - Color to use for drawing a line at interesting
  * tile faces. If set to null, interesting tile faces will not be drawn.
  * @param {Phaser.Tilemaps.LayerData} layer - The Tilemap Layer to act upon.
  */
@@ -31,17 +36,14 @@ var RenderDebug = function (graphics, styleConfig, layer)
     if (styleConfig === undefined) { styleConfig = {}; }
 
     // Default colors without needlessly creating Color objects
-    var tileColor = styleConfig.tileColor !== undefined
-        ? styleConfig.tileColor
-        : new Color(105, 210, 231, 150);
-    var collidingTileColor = styleConfig.collidingTileColor !== undefined
-        ? styleConfig.collidingTileColor
-        : new Color(243, 134, 48, 200);
-    var faceColor = styleConfig.faceColor !== undefined
-        ? styleConfig.faceColor
-        : new Color(40, 39, 37, 150);
+    var tileColor = (styleConfig.tileColor !== undefined) ? styleConfig.tileColor : defaultTileColor;
+    var collidingTileColor = (styleConfig.collidingTileColor !== undefined) ? styleConfig.collidingTileColor : defaultCollidingTileColor;
+    var faceColor = (styleConfig.faceColor !== undefined) ? styleConfig.faceColor : defaultFaceColor;
 
     var tiles = GetTilesWithin(0, 0, layer.width, layer.height, null, layer);
+
+    graphics.translateCanvas(layer.tilemapLayer.x, layer.tilemapLayer.y);
+    graphics.scaleCanvas(layer.tilemapLayer.scaleX, layer.tilemapLayer.scaleY);
 
     for (var i = 0; i < tiles.length; i++)
     {
@@ -53,6 +55,7 @@ var RenderDebug = function (graphics, styleConfig, layer)
         var y = tile.pixelY;
 
         var color = tile.collides ? collidingTileColor : tileColor;
+
         if (color !== null)
         {
             graphics.fillStyle(color.color, color.alpha / 255);
@@ -68,6 +71,7 @@ var RenderDebug = function (graphics, styleConfig, layer)
         if (faceColor !== null)
         {
             graphics.lineStyle(1, faceColor.color, faceColor.alpha / 255);
+
             if (tile.faceTop) { graphics.lineBetween(x, y, x + tw, y); }
             if (tile.faceRight) { graphics.lineBetween(x + tw, y, x + tw, y + th); }
             if (tile.faceBottom) { graphics.lineBetween(x, y + th, x + tw, y + th); }

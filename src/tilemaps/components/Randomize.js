@@ -1,11 +1,11 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @copyright    2019 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var GetTilesWithin = require('./GetTilesWithin');
-var GetRandomElement = require('../../utils/array/GetRandomElement');
+var GetRandom = require('../../utils/array/GetRandom');
 
 /**
  * Randomizes the indexes of a rectangular region of tiles (in tile coordinates) within the
@@ -15,12 +15,13 @@ var GetRandomElement = require('../../utils/array/GetRandomElement');
  * indexes. This method only modifies tile indexes and does not change collision information.
  *
  * @function Phaser.Tilemaps.Components.Randomize
+ * @private
  * @since 3.0.0
  *
- * @param {integer} [tileX=0] - [description]
- * @param {integer} [tileY=0] - [description]
- * @param {integer} [width=max width based on tileX] - [description]
- * @param {integer} [height=max height based on tileY] - [description]
+ * @param {integer} [tileX=0] - The left most tile index (in tile coordinates) to use as the origin of the area.
+ * @param {integer} [tileY=0] - The top most tile index (in tile coordinates) to use as the origin of the area.
+ * @param {integer} [width=max width based on tileX] - How many tiles wide from the `tileX` index the area will be.
+ * @param {integer} [height=max height based on tileY] - How many tiles tall from the `tileY` index the area will be.
  * @param {integer[]} [indexes] - An array of indexes to randomly draw from during randomization.
  * @param {Phaser.Tilemaps.LayerData} layer - The Tilemap Layer to act upon.
  */
@@ -29,7 +30,7 @@ var Randomize = function (tileX, tileY, width, height, indexes, layer)
     var i;
     var tiles = GetTilesWithin(tileX, tileY, width, height, null, layer);
 
-    // If no indicies are given, then find all the unique indexes within the specified region
+    // If no indices are given, then find all the unique indexes within the specified region
     if (indexes === undefined)
     {
         indexes = [];
@@ -44,7 +45,7 @@ var Randomize = function (tileX, tileY, width, height, indexes, layer)
 
     for (i = 0; i < tiles.length; i++)
     {
-        tiles[i].index = GetRandomElement(indexes);
+        tiles[i].index = GetRandom(indexes);
     }
 };
 
