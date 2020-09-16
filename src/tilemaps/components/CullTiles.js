@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -11,7 +11,6 @@ var SnapCeil = require('../../math/snap/SnapCeil');
  * Returns the tiles in the given layer that are within the camera's viewport. This is used internally.
  *
  * @function Phaser.Tilemaps.Components.CullTiles
- * @private
  * @since 3.0.0
  *
  * @param {Phaser.Tilemaps.LayerData} layer - The Tilemap Layer to act upon.

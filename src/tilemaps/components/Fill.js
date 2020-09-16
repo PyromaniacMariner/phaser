@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -14,7 +14,6 @@ var SetTileCollision = require('./SetTileCollision');
  * Collision information in the region will be recalculated.
  *
  * @function Phaser.Tilemaps.Components.Fill
- * @private
  * @since 3.0.0
  *
  * @param {integer} index - The tile index to fill the area with.

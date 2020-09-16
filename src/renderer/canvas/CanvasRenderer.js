@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @author       Felipe Alfonso <@bitnenfer>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -86,7 +86,6 @@ var CanvasRenderer = new Class({
         this.config = {
             clearBeforeRender: game.config.clearBeforeRender,
             backgroundColor: game.config.backgroundColor,
-            resolution: game.config.resolution,
             antialias: game.config.antialias,
             roundPixels: game.config.roundPixels
         };
@@ -145,7 +144,7 @@ var CanvasRenderer = new Class({
 
         /**
          * Details about the currently scheduled snapshot.
-         * 
+         *
          * If a non-null `callback` is set in this object, a snapshot of the canvas will be taken after the current frame is fully rendered.
          *
          * @name Phaser.Renderer.Canvas.CanvasRenderer#snapshotState
@@ -229,8 +228,6 @@ var CanvasRenderer = new Class({
      *
      * @param {Phaser.Structs.Size} gameSize - The default Game Size object. This is the un-modified game dimensions.
      * @param {Phaser.Structs.Size} baseSize - The base Size object. The game dimensions multiplied by the resolution. The canvas width / height values match this.
-     * @param {Phaser.Structs.Size} displaySize - The display Size object. The size of the canvas style width / height attributes.
-     * @param {number} [resolution] - The Scale Manager resolution setting.
      */
     onResize: function (gameSize, baseSize)
     {
@@ -360,10 +357,9 @@ var CanvasRenderer = new Class({
      *
      * @param {Phaser.Scene} scene - The Scene to render.
      * @param {Phaser.GameObjects.DisplayList} children - The Game Objects within the Scene to be rendered.
-     * @param {number} interpolationPercentage - The interpolation percentage to apply. Currently unused.
      * @param {Phaser.Cameras.Scene2D.Camera} camera - The Scene Camera to render with.
      */
-    render: function (scene, children, interpolationPercentage, camera)
+    render: function (scene, children, camera)
     {
         var list = children.list;
         var childCount = list.length;
@@ -427,7 +423,7 @@ var CanvasRenderer = new Class({
                 child.mask.preRenderCanvas(this, child, camera);
             }
 
-            child.renderCanvas(this, child, interpolationPercentage, camera);
+            child.renderCanvas(this, child, camera);
 
             if (child.mask)
             {
@@ -456,7 +452,10 @@ var CanvasRenderer = new Class({
         {
             camera.emit(CameraEvents.POST_RENDER, camera);
 
-            scene.sys.context.drawImage(camera.canvas, cx, cy);
+            if (camera.renderToGame)
+            {
+                scene.sys.context.drawImage(camera.canvas, cx, cy);
+            }
         }
     },
 
@@ -486,9 +485,9 @@ var CanvasRenderer = new Class({
 
     /**
      * Takes a snapshot of the given area of the given canvas.
-     * 
+     *
      * Unlike the other snapshot methods, this one is processed immediately and doesn't wait for the next render.
-     * 
+     *
      * Snapshots work by creating an Image object from the canvas data, this is a blocking process, which gets
      * more expensive the larger the canvas size gets, so please be careful how you employ this in your game.
      *
@@ -526,12 +525,12 @@ var CanvasRenderer = new Class({
 
     /**
      * Schedules a snapshot of the entire game viewport to be taken after the current frame is rendered.
-     * 
+     *
      * To capture a specific area see the `snapshotArea` method. To capture a specific pixel, see `snapshotPixel`.
-     * 
+     *
      * Only one snapshot can be active _per frame_. If you have already called `snapshotPixel`, for example, then
      * calling this method will override it.
-     * 
+     *
      * Snapshots work by creating an Image object from the canvas data, this is a blocking process, which gets
      * more expensive the larger the canvas size gets, so please be careful how you employ this in your game.
      *
@@ -551,12 +550,12 @@ var CanvasRenderer = new Class({
 
     /**
      * Schedules a snapshot of the given area of the game viewport to be taken after the current frame is rendered.
-     * 
+     *
      * To capture the whole game viewport see the `snapshot` method. To capture a specific pixel, see `snapshotPixel`.
-     * 
+     *
      * Only one snapshot can be active _per frame_. If you have already called `snapshotPixel`, for example, then
      * calling this method will override it.
-     * 
+     *
      * Snapshots work by creating an Image object from the canvas data, this is a blocking process, which gets
      * more expensive the larger the canvas size gets, so please be careful how you employ this in your game.
      *
@@ -591,12 +590,12 @@ var CanvasRenderer = new Class({
 
     /**
      * Schedules a snapshot of the given pixel from the game viewport to be taken after the current frame is rendered.
-     * 
+     *
      * To capture the whole game viewport see the `snapshot` method. To capture a specific area, see `snapshotArea`.
-     * 
+     *
      * Only one snapshot can be active _per frame_. If you have already called `snapshotArea`, for example, then
      * calling this method will override it.
-     * 
+     *
      * Unlike the other two snapshot methods, this one will return a `Color` object containing the color data for
      * the requested pixel. It doesn't need to create an internal Canvas or Image object, so is a lot faster to execute,
      * using less memory.
@@ -639,7 +638,7 @@ var CanvasRenderer = new Class({
             //  Nothing to see, so abort early
             return;
         }
-    
+
         var ctx = this.currentContext;
 
         var camMatrix = this._tempMatrix1;
@@ -673,7 +672,7 @@ var CanvasRenderer = new Class({
 
             frameWidth = crop.cw;
             frameHeight = crop.ch;
-    
+
             frameX = crop.cx;
             frameY = crop.cy;
 
@@ -691,7 +690,7 @@ var CanvasRenderer = new Class({
                     x = (Math.abs(x) - frameWidth);
                 }
             }
-        
+
             if (sprite.flipY)
             {
                 if (y >= 0)
@@ -749,13 +748,13 @@ var CanvasRenderer = new Class({
         {
             spriteMatrix.e -= camera.scrollX * sprite.scrollFactorX;
             spriteMatrix.f -= camera.scrollY * sprite.scrollFactorY;
-    
+
             //  Multiply by the Sprite matrix, store result in calcMatrix
             camMatrix.multiply(spriteMatrix, calcMatrix);
         }
 
         ctx.save();
-       
+
         calcMatrix.setToContext(ctx);
 
         ctx.globalCompositeOperation = this.blendModes[sprite.blendMode];
@@ -764,7 +763,17 @@ var CanvasRenderer = new Class({
 
         ctx.imageSmoothingEnabled = !(!this.antialias || frame.source.scaleMode);
 
+        if (sprite.mask)
+        {
+            sprite.mask.preRenderCanvas(this, sprite, camera);
+        }
+
         ctx.drawImage(frame.source.image, frameX, frameY, frameWidth, frameHeight, x, y, frameWidth / res, frameHeight / res);
+
+        if (sprite.mask)
+        {
+            sprite.mask.postRenderCanvas(this, sprite, camera);
+        }
 
         ctx.restore();
     },

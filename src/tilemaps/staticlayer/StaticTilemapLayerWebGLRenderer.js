@@ -1,15 +1,20 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
+var Identity = require('../../renderer/webgl/mvp/Identity');
+var Scale = require('../../renderer/webgl/mvp/Scale');
+var Translate = require('../../renderer/webgl/mvp/Translate');
+var ViewLoad2D = require('../../renderer/webgl/mvp/ViewLoad2D');
+
 /**
  * Renders this Game Object with the WebGL Renderer to the given Camera.
- * 
+ *
  * The object will not render if any of its renderFlags are set or it is being actively filtered out by the Camera.
  * This method should not be called directly. It is a utility function of the Render module.
- * 
+ *
  * A Static Tilemap Layer renders immediately and does not use any batching.
  *
  * @method Phaser.Tilemaps.StaticTilemapLayer#renderWebGL
@@ -18,49 +23,66 @@
  *
  * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
  * @param {Phaser.Tilemaps.StaticTilemapLayer} src - The Game Object being rendered in this call.
- * @param {number} interpolationPercentage - Reserved for future use and custom pipelines.
  * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
  */
-var StaticTilemapLayerWebGLRenderer = function (renderer, src, interpolationPercentage, camera)
+var StaticTilemapLayerWebGLRenderer = function (renderer, src, camera)
 {
-    var tilesets = src.tileset;
-
+    var gl = renderer.gl;
     var pipeline = src.pipeline;
+
+    renderer.flush();
+
+    //  Restore when we're done
     var pipelineVertexBuffer = pipeline.vertexBuffer;
 
-    renderer.setPipeline(pipeline);
+    Identity(src);
+    Translate(src, src.x - (camera.scrollX * src.scrollFactorX), src.y - (camera.scrollY * src.scrollFactorY), 0);
+    Scale(src, src.scaleX, src.scaleY, 1);
+    ViewLoad2D(src, camera.matrix.matrix);
 
-    pipeline.modelIdentity();
-    pipeline.modelTranslate(src.x - (camera.scrollX * src.scrollFactorX), src.y - (camera.scrollY * src.scrollFactorY), 0);
-    pipeline.modelScale(src.scaleX, src.scaleY, 1);
-    pipeline.viewLoad2D(camera.matrix.matrix);
+    renderer.pipelines.set(pipeline);
 
-    for (var i = 0; i < tilesets.length; i++)
+    //  The above alters the uniforms, so make sure we call it _after_ setting the MVP stuff above
+    renderer.setMatrix4(pipeline.program, 'uModelMatrix', false, src.modelMatrix);
+    renderer.setMatrix4(pipeline.program, 'uViewMatrix', false, src.viewMatrix);
+    renderer.setMatrix4(pipeline.program, 'uProjectionMatrix', false, pipeline.projectionMatrix);
+
+    for (var i = 0; i < src.tileset.length; i++)
     {
+        var tileset = src.tileset[i];
+        var vertexCount = src.vertexCount[i];
+
         src.upload(camera, i);
 
-        if (src.vertexCount[i] > 0)
+        if (vertexCount > 0)
         {
-            if (renderer.currentPipeline && renderer.currentPipeline.vertexCount > 0)
+            if (pipeline.forceZero)
             {
-                renderer.flush();
+                //  Light Pipeline, or similar
+                pipeline.setGameObject(src, tileset);
             }
-        
-            pipeline.vertexBuffer = src.vertexBuffer[i];
-        
-            renderer.setPipeline(pipeline);
-        
-            renderer.setTexture2D(tilesets[i].glTexture, 0);
-        
-            renderer.gl.drawArrays(pipeline.topology, 0, src.vertexCount[i]);
+            else
+            {
+                renderer.setTextureZero(tileset.glTexture);
+            }
+
+            gl.drawArrays(gl.TRIANGLES, 0, vertexCount);
         }
     }
 
-    //  Restore the pipeline
+    renderer.resetTextures();
+
+    //  Restore the pipeline buffer
     pipeline.vertexBuffer = pipelineVertexBuffer;
 
-    pipeline.viewIdentity();
-    pipeline.modelIdentity();
+    renderer.currentVertexBuffer = pipelineVertexBuffer;
+
+    pipeline.setAttribPointers();
+
+    //  Reset the uniforms
+    renderer.setMatrix4(pipeline.program, 'uModelMatrix', false, pipeline.modelMatrix);
+    renderer.setMatrix4(pipeline.program, 'uViewMatrix', false, pipeline.viewMatrix);
+    renderer.setMatrix4(pipeline.program, 'uProjectionMatrix', false, pipeline.projectionMatrix);
 };
 
 module.exports = StaticTilemapLayerWebGLRenderer;

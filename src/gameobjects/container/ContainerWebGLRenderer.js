@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @author       Felipe Alfonso <@bitnenfer>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -16,11 +16,10 @@
  *
  * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
  * @param {Phaser.GameObjects.Container} container - The Game Object being rendered in this call.
- * @param {number} interpolationPercentage - Reserved for future use and custom pipelines.
  * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
  * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
  */
-var ContainerWebGLRenderer = function (renderer, container, interpolationPercentage, camera, parentMatrix)
+var ContainerWebGLRenderer = function (renderer, container, camera, parentMatrix)
 {
     var children = container.list;
 
@@ -30,7 +29,7 @@ var ContainerWebGLRenderer = function (renderer, container, interpolationPercent
     }
 
     var transformMatrix = container.localTransform;
-    
+
     if (parentMatrix)
     {
         transformMatrix.loadIdentity();
@@ -52,10 +51,7 @@ var ContainerWebGLRenderer = function (renderer, container, interpolationPercent
         renderer.setBlendMode(0);
     }
 
-    var alphaTopLeft = container.alphaTopLeft;
-    var alphaTopRight = container.alphaTopRight;
-    var alphaBottomLeft = container.alphaBottomLeft;
-    var alphaBottomRight = container.alphaBottomRight;
+    var alpha = container.alpha;
 
     var scrollFactorX = container.scrollFactorX;
     var scrollFactorY = container.scrollFactorY;
@@ -123,10 +119,10 @@ var ContainerWebGLRenderer = function (renderer, container, interpolationPercent
         //  Set parent values
         child.setScrollFactor(childScrollFactorX * scrollFactorX, childScrollFactorY * scrollFactorY);
 
-        child.setAlpha(childAlphaTopLeft * alphaTopLeft, childAlphaTopRight * alphaTopRight, childAlphaBottomLeft * alphaBottomLeft, childAlphaBottomRight * alphaBottomRight);
+        child.setAlpha(childAlphaTopLeft * alpha, childAlphaTopRight * alpha, childAlphaBottomLeft * alpha, childAlphaBottomRight * alpha);
 
         //  Render
-        child.renderWebGL(renderer, child, interpolationPercentage, camera, transformMatrix);
+        child.renderWebGL(renderer, child, camera, transformMatrix);
 
         //  Restore original values
 

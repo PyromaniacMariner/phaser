@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -13,7 +13,6 @@ var CalculateFacesWithin = require('./CalculateFacesWithin');
  * information in the destination region.
  *
  * @function Phaser.Tilemaps.Components.Copy
- * @private
  * @since 3.0.0
  *
  * @param {integer} srcTileX - The x coordinate of the area to copy from, in tiles, not pixels.
@@ -40,6 +39,7 @@ var Copy = function (srcTileX, srcTileY, width, height, destTileX, destTileY, re
     {
         var tileX = srcTiles[i].x + offsetX;
         var tileY = srcTiles[i].y + offsetY;
+
         if (tileX >= 0 && tileX < layer.width && tileY >= 0 && tileY < layer.height)
         {
             if (layer.data[tileY][tileX])

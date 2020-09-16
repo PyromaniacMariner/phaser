@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -438,7 +438,7 @@ var TransformMatrix = new Class({
      * @param {Phaser.GameObjects.Components.TransformMatrix} rhs - The Matrix to multiply by.
      * @param {Phaser.GameObjects.Components.TransformMatrix} [out] - An optional Matrix to store the results in.
      *
-     * @return {Phaser.GameObjects.Components.TransformMatrix} Either this TransformMatrix, or the `out` Matrix, if given in the arguments.
+     * @return {(this|Phaser.GameObjects.Components.TransformMatrix)} Either this TransformMatrix, or the `out` Matrix, if given in the arguments.
      */
     multiply: function (rhs, out)
     {
@@ -928,6 +928,58 @@ var TransformMatrix = new Class({
     getY: function (x, y)
     {
         return x * this.b + y * this.d + this.f;
+    },
+
+    /**
+     * Returns the X component of this matrix multiplied by the given values.
+     * 
+     * This is the same as `x * a + y * c + e`, optionally passing via `Math.round`.
+     *
+     * @method Phaser.GameObjects.Components.TransformMatrix#getXRound
+     * @since 3.50.0
+     * 
+     * @param {number} x - The x value.
+     * @param {number} y - The y value.
+     * @param {boolean} [round=false] - Math.round the resulting value?
+     *
+     * @return {number} The calculated x value.
+     */
+    getXRound: function (x, y, round)
+    {
+        var v = this.getX(x, y);
+
+        if (round)
+        {
+            v = Math.round(v);
+        }
+
+        return v;
+    },
+
+    /**
+     * Returns the Y component of this matrix multiplied by the given values.
+     * 
+     * This is the same as `x * b + y * d + f`, optionally passing via `Math.round`.
+     *
+     * @method Phaser.GameObjects.Components.TransformMatrix#getYRound
+     * @since 3.50.0
+     * 
+     * @param {number} x - The x value.
+     * @param {number} y - The y value.
+     * @param {boolean} [round=false] - Math.round the resulting value?
+     *
+     * @return {number} The calculated y value.
+     */
+    getYRound: function (x, y, round)
+    {
+        var v = this.getY(x, y);
+
+        if (round)
+        {
+            v = Math.round(v);
+        }
+
+        return v;
     },
 
     /**

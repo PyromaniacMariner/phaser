@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -192,6 +192,40 @@ var LineCurve = new Class({
         var tangent = tmpVec2.copy(this.p1).subtract(this.p0);
 
         return tangent.normalize();
+    },
+
+    /**
+     * Given u ( 0 .. 1 ), get a t to find p. This gives you points which are equidistant.
+     *
+     * @method Phaser.Curves.Line#getUtoTmapping
+     * @since 3.0.0
+     *
+     * @param {number} u - A float between 0 and 1.
+     * @param {integer} distance - The distance, in pixels.
+     * @param {integer} [divisions] - Optional amount of divisions.
+     *
+     * @return {number} The equidistant value.
+     */
+    getUtoTmapping: function (u, distance, divisions)
+    {
+        var t;
+
+        if (distance)
+        {
+            var arcLengths = this.getLengths(divisions);
+            var lineLength = arcLengths[arcLengths.length - 1];
+
+            //  Cannot overshoot the curve
+            var targetLineLength = Math.min(distance, lineLength);
+
+            t = targetLineLength / lineLength;
+        }
+        else
+        {
+            t = u;
+        }
+
+        return t;
     },
 
     //  Override default Curve.draw because this is better than calling getPoints on a line!

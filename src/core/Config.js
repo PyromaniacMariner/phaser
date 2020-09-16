@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -60,11 +60,6 @@ var Config = new Class({
          * @const {(Phaser.Scale.ZoomType|integer)} Phaser.Core.Config#zoom - The zoom factor, as used by the Scale Manager.
          */
         this.zoom = GetValue(config, 'zoom', 1);
-
-        /**
-         * @const {number} Phaser.Core.Config#resolution - The canvas device pixel resolution. Currently un-used.
-         */
-        this.resolution = GetValue(config, 'resolution', 1);
 
         /**
          * @const {?*} Phaser.Core.Config#parent - A parent DOM element into which the canvas created by the renderer will be injected.
@@ -130,7 +125,6 @@ var Config = new Class({
             this.width = GetValue(scaleConfig, 'width', this.width);
             this.height = GetValue(scaleConfig, 'height', this.height);
             this.zoom = GetValue(scaleConfig, 'zoom', this.zoom);
-            this.resolution = GetValue(scaleConfig, 'resolution', this.resolution);
             this.parent = GetValue(scaleConfig, 'parent', this.parent);
             this.scaleMode = GetValue(scaleConfig, 'mode', this.scaleMode);
             this.expandParent = GetValue(scaleConfig, 'expandParent', this.expandParent);
@@ -241,9 +235,19 @@ var Config = new Class({
         this.inputMouseEventTarget = GetValue(config, 'input.mouse.target', null);
 
         /**
-         * @const {boolean} Phaser.Core.Config#inputMouseCapture - Should mouse events be captured? I.e. have prevent default called on them.
+         * @const {boolean} Phaser.Core.Config#inputMousePreventDefaultDown - Should `mousedown` events be captured? I.e. have prevent default called on them.
          */
-        this.inputMouseCapture = GetValue(config, 'input.mouse.capture', true);
+        this.inputMousePreventDefaultDown = GetValue(config, 'input.mouse.preventDefaultDown', true);
+
+        /**
+         * @const {boolean} Phaser.Core.Config#inputMousePreventDefaultUp - Should `mouseup` events be captured? I.e. have prevent default called on them.
+         */
+        this.inputMousePreventDefaultUp = GetValue(config, 'input.mouse.preventDefaultUp', true);
+
+        /**
+         * @const {boolean} Phaser.Core.Config#inputMousePreventDefaultMove - Should `mousemove` events be captured? I.e. have prevent default called on them.
+         */
+        this.inputMousePreventDefaultMove = GetValue(config, 'input.mouse.preventDefaultMove', true);
 
         /**
          * @const {boolean} Phaser.Core.Config#inputTouch - Enable the Touch Plugin. This can be disabled in games that don't need touch input.
@@ -293,7 +297,7 @@ var Config = new Class({
         /**
          * @const {Phaser.Types.Core.AudioConfig} Phaser.Core.Config#audio - The Audio Configuration object.
          */
-        this.audio = GetValue(config, 'audio');
+        this.audio = GetValue(config, 'audio', {});
 
         //  If you do: { banner: false } it won't display any banner at all
 
@@ -396,7 +400,12 @@ var Config = new Class({
         /**
          * @const {integer} Phaser.Core.Config#batchSize - The default WebGL Batch size.
          */
-        this.batchSize = GetValue(renderConfig, 'batchSize', 2000);
+        this.batchSize = GetValue(renderConfig, 'batchSize', 4096);
+
+        /**
+         * @const {integer} Phaser.Core.Config#maxTextures - When in WebGL mode, this sets the maximum number of GPU Textures to use. The default, -1, will use all available units. The WebGL1 spec says all browsers should provide a minimum of 8.
+         */
+        this.maxTextures = GetValue(renderConfig, 'maxTextures', -1);
 
         /**
          * @const {integer} Phaser.Core.Config#maxLights - The maximum number of lights allowed to be visible within range of a single Camera in the LightManager.
@@ -480,6 +489,11 @@ var Config = new Class({
          */
         this.loaderTimeout = GetValue(config, 'loader.timeout', 0);
 
+        /**
+         * @const {boolean} Phaser.Core.Config#loaderWithCredentials - Optional XHR withCredentials value.
+         */
+        this.loaderWithCredentials = GetValue(config, 'loader.withCredentials', false);
+
         /*
          * Allows `plugins` property to either be an array, in which case it just replaces
          * the default plugins like previously, or a config object.
@@ -551,6 +565,11 @@ var Config = new Class({
          * @const {string} Phaser.Core.Config#missingImage - A base64 encoded PNG that will be used as the default texture when a texture is assigned that is missing or not loaded.
          */
         this.missingImage = GetValue(config, 'images.missing', pngPrefix + 'CAIAAAD8GO2jAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAJ9JREFUeNq01ssOwyAMRFG46v//Mt1ESmgh+DFmE2GPOBARKb2NVjo+17PXLD8a1+pl5+A+wSgFygymWYHBb0FtsKhJDdZlncG2IzJ4ayoMDv20wTmSMzClEgbWYNTAkQ0Z+OJ+A/eWnAaR9+oxCF4Os0H8htsMUp+pwcgBBiMNnAwF8GqIgL2hAzaGFFgZauDPKABmowZ4GL369/0rwACp2yA/ttmvsQAAAABJRU5ErkJggg==');
+
+        /**
+         * @const {string} Phaser.Core.Config#whiteImage - A base64 encoded PNG that will be used as the default texture when a texture is assigned that is white or not loaded.
+         */
+        this.whiteImage = GetValue(config, 'images.white', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAABdJREFUeNpi/P//PwMMMDEgAdwcgAADAJZuAwXJYZOzAAAAAElFTkSuQmCC');
 
         if (window)
         {

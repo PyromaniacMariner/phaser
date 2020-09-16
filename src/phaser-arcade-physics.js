@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -15,7 +15,7 @@ var Extend = require('./utils/object/Extend');
 
 /**
  * The root types namespace.
- * 
+ *
  * @namespace Phaser.Types
  * @since 3.17.0
  */

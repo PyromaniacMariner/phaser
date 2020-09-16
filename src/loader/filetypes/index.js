@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -26,6 +26,7 @@ module.exports = {
     JSONFile: require('./JSONFile'),
     MultiAtlasFile: require('./MultiAtlasFile'),
     MultiScriptFile: require('./MultiScriptFile'),
+    OBJFile: require('./OBJFile'),
     PackFile: require('./PackFile'),
     PluginFile: require('./PluginFile'),
     SceneFile: require('./SceneFile'),

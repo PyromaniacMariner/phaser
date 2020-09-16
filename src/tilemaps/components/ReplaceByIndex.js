@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -12,7 +12,6 @@ var GetTilesWithin = require('./GetTilesWithin');
  * not change collision information.
  *
  * @function Phaser.Tilemaps.Components.ReplaceByIndex
- * @private
  * @since 3.0.0
  *
  * @param {integer} findIndex - The index of the tile to search for.

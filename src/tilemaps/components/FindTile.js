@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -22,7 +22,6 @@ var GetTilesWithin = require('./GetTilesWithin');
  * true. Similar to Array.prototype.find in vanilla JS.
  *
  * @function Phaser.Tilemaps.Components.FindTile
- * @private
  * @since 3.0.0
  *
  * @param {FindTileCallback} callback - The callback. Each tile in the given area will be passed to this callback as the first and only parameter.

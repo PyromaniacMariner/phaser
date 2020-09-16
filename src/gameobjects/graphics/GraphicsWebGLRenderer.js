@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -36,20 +36,17 @@ var matrixStack = [];
  *
  * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
  * @param {Phaser.GameObjects.Graphics} src - The Game Object being rendered in this call.
- * @param {number} interpolationPercentage - Reserved for future use and custom pipelines.
  * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
  * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
  */
-var GraphicsWebGLRenderer = function (renderer, src, interpolationPercentage, camera, parentMatrix)
+var GraphicsWebGLRenderer = function (renderer, src, camera, parentMatrix)
 {
     if (src.commandBuffer.length === 0)
     {
         return;
     }
 
-    var pipeline = this.pipeline;
-
-    renderer.setPipeline(pipeline, src);
+    var pipeline = renderer.pipelines.set(this.pipeline, src);
 
     var camMatrix = src._tempMatrix1;
     var graphicsMatrix = src._tempMatrix2;
@@ -102,9 +99,10 @@ var GraphicsWebGLRenderer = function (renderer, src, interpolationPercentage, ca
     var pathOpen = false;
     var lastPath = null;
 
-    var getTint = Utils.getTintAppendFloatAlphaAndSwap;
+    var getTint = Utils.getTintAppendFloatAlpha;
 
-    var currentTexture = renderer.blankTexture.glTexture;
+    //  Set to a white texture, not a blank one, so Lights2D works too!
+    var currentTexture = renderer.whiteTexture;
 
     for (var cmdIndex = 0; cmdIndex < commands.length; cmdIndex++)
     {
@@ -132,7 +130,7 @@ var GraphicsWebGLRenderer = function (renderer, src, interpolationPercentage, ca
             case Commands.FILL_PATH:
                 for (pathIndex = 0; pathIndex < path.length; pathIndex++)
                 {
-                    pipeline.setTexture2D(currentTexture);
+                    pipeline.setTexture2D(currentTexture, src);
 
                     pipeline.batchFillPath(
                         path[pathIndex].points,
@@ -145,7 +143,7 @@ var GraphicsWebGLRenderer = function (renderer, src, interpolationPercentage, ca
             case Commands.STROKE_PATH:
                 for (pathIndex = 0; pathIndex < path.length; pathIndex++)
                 {
-                    pipeline.setTexture2D(currentTexture);
+                    pipeline.setTexture2D(currentTexture, src);
 
                     pipeline.batchStrokePath(
                         path[pathIndex].points,
@@ -254,7 +252,7 @@ var GraphicsWebGLRenderer = function (renderer, src, interpolationPercentage, ca
                 break;
 
             case Commands.FILL_RECT:
-                pipeline.setTexture2D(currentTexture);
+                pipeline.setTexture2D(currentTexture, src);
                 pipeline.batchFillRect(
                     commands[++cmdIndex],
                     commands[++cmdIndex],
@@ -266,7 +264,7 @@ var GraphicsWebGLRenderer = function (renderer, src, interpolationPercentage, ca
                 break;
 
             case Commands.FILL_TRIANGLE:
-                pipeline.setTexture2D(currentTexture);
+                pipeline.setTexture2D(currentTexture, src);
                 pipeline.batchFillTriangle(
                     commands[++cmdIndex],
                     commands[++cmdIndex],
@@ -280,7 +278,7 @@ var GraphicsWebGLRenderer = function (renderer, src, interpolationPercentage, ca
                 break;
 
             case Commands.STROKE_TRIANGLE:
-                pipeline.setTexture2D(currentTexture);
+                pipeline.setTexture2D(currentTexture, src);
                 pipeline.batchStrokeTriangle(
                     commands[++cmdIndex],
                     commands[++cmdIndex],
@@ -340,7 +338,7 @@ var GraphicsWebGLRenderer = function (renderer, src, interpolationPercentage, ca
                 var mode = commands[++cmdIndex];
 
                 pipeline.currentFrame = frame;
-                pipeline.setTexture2D(frame.glTexture, 0);
+                pipeline.setTexture2D(frame.glTexture, src);
                 pipeline.tintEffect = mode;
 
                 currentTexture = frame.glTexture;
@@ -350,7 +348,7 @@ var GraphicsWebGLRenderer = function (renderer, src, interpolationPercentage, ca
             case Commands.CLEAR_TEXTURE:
                 pipeline.currentFrame = renderer.blankTexture;
                 pipeline.tintEffect = 2;
-                currentTexture = renderer.blankTexture.glTexture;
+                currentTexture = renderer.tempTextures[0];
                 break;
         }
     }

@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -64,6 +64,7 @@ var SeparateY = function (body1, body2, overlapOnly, bias)
         if (body2.moves)
         {
             body1.x += (body2.x - body2.prev.x) * body2.friction.x;
+            body1._dx = body1.x - body1.prev.x;
         }
     }
     else
@@ -75,6 +76,7 @@ var SeparateY = function (body1, body2, overlapOnly, bias)
         if (body1.moves)
         {
             body2.x += (body1.x - body1.prev.x) * body1.friction.x;
+            body2._dx = body2.x - body2.prev.x;
         }
     }
 

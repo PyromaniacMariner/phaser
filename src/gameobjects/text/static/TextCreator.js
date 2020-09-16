@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -17,7 +17,7 @@ var Text = require('./Text');
  * @method Phaser.GameObjects.GameObjectCreator#text
  * @since 3.0.0
  *
- * @param {object} config - The configuration object this Game Object will use to create itself.
+ * @param {Phaser.Types.GameObjects.Text.TextConfig} config - The configuration object this Game Object will use to create itself.
  * @param {boolean} [addToScene] - Add this Game Object to the Scene after creating it? If set this argument overrides the `add` property in the config object.
  *
  * @return {Phaser.GameObjects.Text} The Game Object that was created.

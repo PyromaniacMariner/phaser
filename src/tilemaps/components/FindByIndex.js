@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -12,7 +12,6 @@
  * the top-left.
  *
  * @function Phaser.Tilemaps.Components.FindByIndex
- * @private
  * @since 3.0.0
  *
  * @param {integer} index - The tile index value to search for.

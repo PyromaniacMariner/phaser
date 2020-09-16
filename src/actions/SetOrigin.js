@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -34,8 +34,14 @@ var SetOrigin = function (items, originX, originY, stepX, stepY, index, directio
     if (originY === undefined || originY === null) { originY = originX; }
 
     PropertyValueSet(items, 'originX', originX, stepX, index, direction);
+    PropertyValueSet(items, 'originY', originY, stepY, index, direction);
 
-    return PropertyValueSet(items, 'originY', originY, stepY, index, direction);
+    items.forEach(function (item)
+    {
+        item.updateDisplayOrigin();
+    });
+
+    return items;
 };
 
 module.exports = SetOrigin;

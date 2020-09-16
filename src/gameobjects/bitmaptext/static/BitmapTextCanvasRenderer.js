@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -17,11 +17,10 @@ var SetTransform = require('../../../renderer/canvas/utils/SetTransform');
  *
  * @param {Phaser.Renderer.Canvas.CanvasRenderer} renderer - A reference to the current active Canvas renderer.
  * @param {Phaser.GameObjects.BitmapText} src - The Game Object being rendered in this call.
- * @param {number} interpolationPercentage - Reserved for future use and custom pipelines.
  * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
  * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
  */
-var BitmapTextCanvasRenderer = function (renderer, src, interpolationPercentage, camera, parentMatrix)
+var BitmapTextCanvasRenderer = function (renderer, src, camera, parentMatrix)
 {
     var text = src._text;
     var textLength = text.length;
@@ -32,7 +31,7 @@ var BitmapTextCanvasRenderer = function (renderer, src, interpolationPercentage,
     {
         return;
     }
-    
+
     var textureFrame = src.frame;
 
     var chars = src.fontData.chars;
@@ -68,11 +67,14 @@ var BitmapTextCanvasRenderer = function (renderer, src, interpolationPercentage,
     var lineOffsetX = 0;
 
     //  Update the bounds - skipped internally if not dirty
-    src.getTextBounds(false);
+    var bounds = src.getTextBounds(false);
 
     //  In case the method above changed it (word wrapping)
-    text = src._text;
-    textLength = text.length;
+    if (src.maxWidth > 0)
+    {
+        text = bounds.wrappedText;
+        textLength = text.length;
+    }
 
     var lineData = src._bounds.lines;
 

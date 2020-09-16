@@ -1,10 +1,10 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
-var Utils = require('../../renderer/webgl/Utils');
+var GetCalcMatrix = require('../GetCalcMatrix');
 
 /**
  * Renders this Game Object with the WebGL Renderer to the given Camera.
@@ -17,96 +17,85 @@ var Utils = require('../../renderer/webgl/Utils');
  *
  * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
  * @param {Phaser.GameObjects.Mesh} src - The Game Object being rendered in this call.
- * @param {number} interpolationPercentage - Reserved for future use and custom pipelines.
  * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
  * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
  */
-var MeshWebGLRenderer = function (renderer, src, interpolationPercentage, camera, parentMatrix)
+var MeshWebGLRenderer = function (renderer, src, camera, parentMatrix)
 {
-    var pipeline = this.pipeline;
+    var faces = src.faces;
+    var totalFaces = faces.length;
 
-    renderer.setPipeline(pipeline, src);
-
-    var camMatrix = pipeline._tempMatrix1;
-    var spriteMatrix = pipeline._tempMatrix2;
-    var calcMatrix = pipeline._tempMatrix3;
-
-    spriteMatrix.applyITRS(src.x, src.y, src.rotation, src.scaleX, src.scaleY);
-
-    camMatrix.copyFrom(camera.matrix);
-
-    if (parentMatrix)
+    if (totalFaces === 0)
     {
-        //  Multiply the camera by the parent matrix
-        camMatrix.multiplyWithOffset(parentMatrix, -camera.scrollX * src.scrollFactorX, -camera.scrollY * src.scrollFactorY);
-
-        //  Undo the camera scroll
-        spriteMatrix.e = src.x;
-        spriteMatrix.f = src.y;
-
-        //  Multiply by the Sprite matrix, store result in calcMatrix
-        camMatrix.multiply(spriteMatrix, calcMatrix);
-    }
-    else
-    {
-        spriteMatrix.e -= camera.scrollX * src.scrollFactorX;
-        spriteMatrix.f -= camera.scrollY * src.scrollFactorY;
-
-        //  Multiply by the Sprite matrix, store result in calcMatrix
-        camMatrix.multiply(spriteMatrix, calcMatrix);
+        return;
     }
 
-    var frame = src.frame;
-    var texture = frame.glTexture;
+    var pipeline = renderer.pipelines.set(src.pipeline, src);
 
-    var vertices = src.vertices;
-    var uvs = src.uv;
-    var colors = src.colors;
-    var alphas = src.alphas;
+    var calcMatrix = GetCalcMatrix(src, camera, parentMatrix).calc;
 
-    var meshVerticesLength = vertices.length;
-    var vertexCount = Math.floor(meshVerticesLength * 0.5);
+    var textureUnit = pipeline.setGameObject(src);
 
-    if (pipeline.vertexCount + vertexCount > pipeline.vertexCapacity)
-    {
-        pipeline.flush();
-    }
-
-    pipeline.setTexture2D(texture, 0);
-
-    var vertexViewF32 = pipeline.vertexViewF32;
-    var vertexViewU32 = pipeline.vertexViewU32;
+    var F32 = pipeline.vertexViewF32;
+    var U32 = pipeline.vertexViewU32;
 
     var vertexOffset = (pipeline.vertexCount * pipeline.vertexComponentCount) - 1;
 
-    var colorIndex = 0;
     var tintEffect = src.tintFill;
 
-    for (var i = 0; i < meshVerticesLength; i += 2)
+    var debugCallback = src.debugCallback;
+    var debugVerts = [];
+
+    var a = calcMatrix.a;
+    var b = calcMatrix.b;
+    var c = calcMatrix.c;
+    var d = calcMatrix.d;
+    var e = calcMatrix.e;
+    var f = calcMatrix.f;
+
+    var roundPixels = camera.roundPixels;
+    var alpha = camera.alpha * src.alpha;
+    var hideCCW = src.hideCCW;
+
+    for (var i = 0; i < totalFaces; i++)
     {
-        var x = vertices[i + 0];
-        var y = vertices[i + 1];
+        var face = faces[i];
 
-        var tx = x * calcMatrix.a + y * calcMatrix.c + calcMatrix.e;
-        var ty = x * calcMatrix.b + y * calcMatrix.d + calcMatrix.f;
-
-        if (camera.roundPixels)
+        if (hideCCW && !face.isCounterClockwise())
         {
-            tx = Math.round(tx);
-            ty = Math.round(ty);
+            continue;
         }
 
-        vertexViewF32[++vertexOffset] = tx;
-        vertexViewF32[++vertexOffset] = ty;
-        vertexViewF32[++vertexOffset] = uvs[i + 0];
-        vertexViewF32[++vertexOffset] = uvs[i + 1];
-        vertexViewF32[++vertexOffset] = tintEffect;
-        vertexViewU32[++vertexOffset] = Utils.getTintAppendFloatAlpha(colors[colorIndex], camera.alpha * alphas[colorIndex]);
+        if (pipeline.shouldFlush(3))
+        {
+            pipeline.flush();
 
-        colorIndex++;
+            vertexOffset = 0;
+        }
+
+        vertexOffset = face.vertex1.load(F32, U32, vertexOffset, textureUnit, tintEffect, alpha, a, b, c, d, e, f, roundPixels);
+        vertexOffset = face.vertex2.load(F32, U32, vertexOffset, textureUnit, tintEffect, alpha, a, b, c, d, e, f, roundPixels);
+        vertexOffset = face.vertex3.load(F32, U32, vertexOffset, textureUnit, tintEffect, alpha, a, b, c, d, e, f, roundPixels);
+
+        pipeline.vertexCount += 3;
+
+        if (debugCallback)
+        {
+            debugVerts.push(
+                F32[vertexOffset - 20],
+                F32[vertexOffset - 19],
+                F32[vertexOffset - 13],
+                F32[vertexOffset - 12],
+                F32[vertexOffset - 6],
+                F32[vertexOffset - 5]
+            );
+        }
     }
 
-    pipeline.vertexCount += vertexCount;
+    if (debugCallback)
+    {
+        debugCallback.call(src, src, src.vertices.length * 2, debugVerts);
+    }
 };
 
 module.exports = MeshWebGLRenderer;

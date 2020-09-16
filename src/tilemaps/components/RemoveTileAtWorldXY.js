@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -13,7 +13,6 @@ var WorldToTileY = require('./WorldToTileY');
  * collision information.
  *
  * @function Phaser.Tilemaps.Components.RemoveTileAtWorldXY
- * @private
  * @since 3.0.0
  *
  * @param {number} worldX - The x coordinate, in pixels.
@@ -29,6 +28,7 @@ var RemoveTileAtWorldXY = function (worldX, worldY, replaceWithNull, recalculate
 {
     var tileX = WorldToTileX(worldX, true, camera, layer);
     var tileY = WorldToTileY(worldY, true, camera, layer);
+
     return RemoveTileAt(tileX, tileY, replaceWithNull, recalculateFaces, layer);
 };
 

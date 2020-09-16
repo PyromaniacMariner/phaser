@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -19,7 +19,6 @@ var GetTilesWithin = require('./GetTilesWithin');
  * callback. Similar to Array.prototype.forEach in vanilla JS.
  *
  * @function Phaser.Tilemaps.Components.ForEachTile
- * @private
  * @since 3.0.0
  *
  * @param {EachTileCallback} callback - The callback. Each tile in the given area will be passed to this callback as the first and only parameter.

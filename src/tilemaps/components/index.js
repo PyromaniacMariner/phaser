@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -41,6 +41,8 @@ module.exports = {
     SetCollisionByExclusion: require('./SetCollisionByExclusion'),
     SetCollisionByProperty: require('./SetCollisionByProperty'),
     SetCollisionFromCollisionGroup: require('./SetCollisionFromCollisionGroup'),
+    SetLayerCollisionIndex: require('./SetLayerCollisionIndex'),
+    SetTileCollision: require('./SetTileCollision'),
     SetTileIndexCallback: require('./SetTileIndexCallback'),
     SetTileLocationCallback: require('./SetTileLocationCallback'),
     Shuffle: require('./Shuffle'),

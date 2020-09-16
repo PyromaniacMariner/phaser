@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -14,7 +14,6 @@ var CalculateFacesWithin = require('./CalculateFacesWithin');
  * controls if collision will be enabled (true) or disabled (false).
  *
  * @function Phaser.Tilemaps.Components.SetCollisionFromCollisionGroup
- * @private
  * @since 3.0.0
  *
  * @param {boolean} [collides=true] - If true it will enable collision. If false it will clear collision.

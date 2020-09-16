@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -15,7 +15,6 @@ var SetLayerCollisionIndex = require('./SetLayerCollisionIndex');
  * enabled (true) or disabled (false).
  *
  * @function Phaser.Tilemaps.Components.SetCollisionBetween
- * @private
  * @since 3.0.0
  *
  * @param {integer} start - The first index of the tile to be set for collision.
@@ -48,7 +47,7 @@ var SetCollisionBetween = function (start, stop, collides, recalculateFaces, lay
             for (var tx = 0; tx < layer.width; tx++)
             {
                 var tile = layer.data[ty][tx];
-              
+
                 if (tile)
                 {
                     if (tile.index >= start && tile.index <= stop)

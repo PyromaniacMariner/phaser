@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -41,11 +41,11 @@ var DebugHeader = function (game)
 
     var audioType;
 
-    if (deviceAudio.webAudio && !(audioConfig && audioConfig.disableWebAudio))
+    if (deviceAudio.webAudio && !audioConfig.disableWebAudio)
     {
         audioType = 'Web Audio';
     }
-    else if ((audioConfig && audioConfig.noAudio) || (!deviceAudio.webAudio && !deviceAudio.audioData))
+    else if (audioConfig.noAudio || (!deviceAudio.webAudio && !deviceAudio.audioData))
     {
         audioType = 'No Audio';
     }

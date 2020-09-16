@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -52,6 +52,7 @@ var PhaserMath = {
     Rotate: require('./Rotate'),
     RotateAround: require('./RotateAround'),
     RotateAroundDistance: require('./RotateAroundDistance'),
+    RotateTo: require('./RotateTo'),
     RoundAwayFromZero: require('./RoundAwayFromZero'),
     RoundTo: require('./RoundTo'),
     SinCosTableGenerator: require('./SinCosTableGenerator'),

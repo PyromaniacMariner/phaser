@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -9,13 +9,12 @@
  * layer's position, scale and scroll.
  *
  * @function Phaser.Tilemaps.Components.TileToWorldX
- * @private
  * @since 3.0.0
  *
  * @param {integer} tileX - The x coordinate, in tiles, not pixels.
  * @param {Phaser.Cameras.Scene2D.Camera} [camera=main camera] - The Camera to use when calculating the tile index from the world values.
  * @param {Phaser.Tilemaps.LayerData} layer - The Tilemap Layer to act upon.
- * 
+ *
  * @return {number}
  */
 var TileToWorldX = function (tileX, camera, layer)

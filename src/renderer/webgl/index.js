@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -10,16 +10,11 @@
 
 module.exports = {
 
+    PipelineManager: require('./PipelineManager'),
+    Pipelines: require('./pipelines'),
+    MVP: require('./mvp'),
     Utils: require('./Utils'),
     WebGLPipeline: require('./WebGLPipeline'),
-    WebGLRenderer: require('./WebGLRenderer'),
-    Pipelines: require('./pipelines'),
-
-    // Constants
-    BYTE: 0,
-    SHORT: 1,
-    UNSIGNED_BYTE: 2,
-    UNSIGNED_SHORT: 3,
-    FLOAT: 4
+    WebGLRenderer: require('./WebGLRenderer')
 
 };
